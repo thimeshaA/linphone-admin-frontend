@@ -1,0 +1,328 @@
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
+@source "../contexts";
+@source "../hooks";
+@source "../lib";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/*
+ * PALETTE — five colours only.
+ *   Neon green #ABF43F  oklch(0.8879 0.2224 125.6)  success / healthy
+ *   Cyan       #3FF4E5  oklch(0.8774 0.1289 187.7)  eSIM identity
+ *   White      #FFFFFF  oklch(1 0 0)                content
+ *   Black      #090909  oklch(0.0863 0 0)           foundation
+ *   Orange     #F0793F  oklch(0.7062 0.1571 45.4)   SIP identity
+ * Everything else is one of those colours at reduced alpha.
+ */
+
+@property --module {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #abf43f;
+}
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface-2: var(--surface-2);
+  --color-positive: var(--positive);
+  --color-positive-foreground: var(--positive-foreground);
+  --color-positive-muted: var(--positive-muted);
+  --color-negative: var(--negative);
+  --color-negative-foreground: var(--negative-foreground);
+  --color-negative-muted: var(--negative-muted);
+  --color-neutral-pill: var(--neutral-pill);
+  --color-module: var(--module);
+  --color-sip: var(--sip);
+  --color-esim: var(--esim);
+  --color-glass-border: var(--glass-border);
+}
+
+:root {
+  --radius: 1.125rem;
+
+  /* palette constants */
+  --sip: oklch(0.7062 0.1571 45.4);
+  --esim: oklch(0.8774 0.1289 187.7);
+  --success: oklch(0.8879 0.2224 125.6);
+  --ink: oklch(0.0863 0 0);
+  --paper: oklch(1 0 0);
+
+  /* contextual identity: green at platform level, orange in SIP, cyan in eSIM */
+  --module: var(--success);
+
+  /* light theme: white surface, black type, same five colours */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --surface-2: oklch(0.0863 0 0 / 6%);
+  --card: oklch(0.0863 0 0 / 3.5%);
+  --card-foreground: var(--ink);
+  --popover: oklch(1 0 0 / 82%);
+  --popover-foreground: var(--ink);
+  --primary: var(--module);
+  --primary-foreground: var(--ink);
+  --secondary: oklch(0.0863 0 0 / 6%);
+  --secondary-foreground: var(--ink);
+  --muted: oklch(0.0863 0 0 / 5%);
+  --muted-foreground: oklch(0.0863 0 0 / 58%);
+  --accent: oklch(0.0863 0 0 / 9%);
+  --accent-foreground: var(--ink);
+  --destructive: oklch(0.0863 0 0 / 10%);
+  --destructive-foreground: var(--ink);
+  --positive: var(--success);
+  --positive-foreground: oklch(0.52 0.15 126);
+  --positive-muted: oklch(0.8879 0.2224 125.6 / 22%);
+  --negative: oklch(0.0863 0 0 / 55%);
+  --negative-foreground: oklch(0.0863 0 0 / 62%);
+  --negative-muted: oklch(0.0863 0 0 / 8%);
+  --neutral-pill: oklch(0.0863 0 0 / 6%);
+  --border: oklch(0.0863 0 0 / 10%);
+  --input: oklch(0.0863 0 0 / 14%);
+  --ring: var(--module);
+  --chart-1: var(--sip);
+  --chart-2: var(--esim);
+  --chart-3: var(--success);
+  --chart-4: var(--ink);
+  --chart-5: oklch(0.0863 0 0 / 45%);
+  --sidebar: oklch(1 0 0 / 70%);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--module);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: oklch(0.0863 0 0 / 6%);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: oklch(0.0863 0 0 / 10%);
+  --sidebar-ring: var(--module);
+
+  /* liquid glass */
+  --glass-bg: oklch(1 0 0 / 62%);
+  --glass-bg-strong: oklch(1 0 0 / 84%);
+  --glass-border: oklch(0.0863 0 0 / 10%);
+  --glass-highlight: oklch(1 0 0 / 70%);
+  --glass-shadow: 0 24px 60px -32px oklch(0.0863 0 0 / 35%);
+}
+
+.dark {
+  --background: var(--ink);
+  --foreground: var(--paper);
+  --surface-2: oklch(1 0 0 / 7%);
+  --card: oklch(1 0 0 / 5%);
+  --card-foreground: var(--paper);
+  --popover: oklch(0.0863 0 0 / 78%);
+  --popover-foreground: var(--paper);
+  --primary: var(--module);
+  --primary-foreground: var(--ink);
+  --secondary: oklch(1 0 0 / 8%);
+  --secondary-foreground: var(--paper);
+  --muted: oklch(1 0 0 / 6%);
+  --muted-foreground: oklch(1 0 0 / 60%);
+  --accent: oklch(1 0 0 / 12%);
+  --accent-foreground: var(--paper);
+  --destructive: oklch(1 0 0 / 12%);
+  --destructive-foreground: var(--paper);
+  --positive: var(--success);
+  --positive-foreground: var(--success);
+  --positive-muted: oklch(0.8879 0.2224 125.6 / 16%);
+  --negative: oklch(1 0 0 / 55%);
+  --negative-foreground: oklch(1 0 0 / 66%);
+  --negative-muted: oklch(1 0 0 / 9%);
+  --neutral-pill: oklch(1 0 0 / 8%);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: var(--module);
+  --sidebar: oklch(0.0863 0 0 / 70%);
+  --sidebar-foreground: var(--paper);
+  --sidebar-primary: var(--module);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: oklch(1 0 0 / 10%);
+  --sidebar-accent-foreground: var(--paper);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: var(--module);
+
+  --glass-bg: oklch(1 0 0 / 6%);
+  --glass-bg-strong: oklch(0.0863 0 0 / 72%);
+  --glass-border: oklch(1 0 0 / 12%);
+  --glass-highlight: oklch(1 0 0 / 16%);
+  --glass-shadow: 0 28px 70px -34px oklch(0.0863 0 0 / 90%);
+}
+
+/* Module identity switching — the contextual layer, transitioned softly. */
+[data-module] {
+  transition: --module 420ms ease;
+}
+[data-module="sip"] {
+  --module: var(--sip);
+}
+[data-module="none"] {
+  --module: var(--success);
+}
+[data-module="esim"] {
+  --module: var(--esim);
+}
+[data-module="success"] {
+  --module: var(--success);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    transition:
+      background-color 220ms ease,
+      color 220ms ease;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+@utility glass {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+@utility glass-strong {
+  background-color: var(--glass-bg-strong);
+  backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Glass that inherits the active module identity as a faint tint. */
+@utility glass-module {
+  background-image: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--module) 12%, transparent),
+    transparent 58%
+  );
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid color-mix(in oklab, var(--module) 26%, var(--glass-border));
+  box-shadow: var(--glass-shadow);
+}
+
+@utility glass-hairline {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
+    pointer-events: none;
+  }
+}
+
+@utility label-meta {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+@utility stat-figure {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility surface {
+  background-color: var(--color-card);
+  border-radius: 1.125rem;
+}
+
+@utility module-text {
+  color: var(--module);
+}
+
+@utility module-bg {
+  background-color: var(--module);
+  color: var(--ink);
+}
+
+@utility module-tint {
+  background-color: color-mix(in oklab, var(--module) 14%, transparent);
+  color: var(--module);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
