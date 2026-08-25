@@ -28,12 +28,11 @@ export function PrimaryRail({
   hoveredAreaId: string | null;
   onHoverArea: (id: string | null) => void;
 }) {
-  const { user, requests } = useTelephony();
+  const { user } = useTelephony();
   const pathname = usePathname();
   const perms = permissionsFor(user);
   const areas = visibleAreas(perms);
   const activeId = activeAreaId(pathname);
-  const pending = requests.filter((r) => r.status === "pending").length;
 
   return (
     <nav
@@ -78,20 +77,12 @@ export function PrimaryRail({
                 className={cn(
                   "relative flex w-16 flex-col items-center gap-1 rounded-2xl px-1.5 py-2.5 text-center transition-all duration-200",
                   active
-                    ? "glass-module text-module"
+                    ? "glass-module text-module-line"
                     : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
                 <span className="relative grid place-items-center">
                   <area.icon aria-hidden="true" className="size-5" />
-                  {area.id === "approvals" && pending > 0 ? (
-                    <span
-                      aria-hidden="true"
-                      className="module-bg absolute -right-2 -top-2 grid size-4 place-items-center rounded-full font-mono text-[9px] leading-none"
-                    >
-                      {pending}
-                    </span>
-                  ) : null}
                 </span>
                 <span className="text-[9px] font-medium leading-tight tracking-wide">
                   {area.shortLabel ?? area.label}

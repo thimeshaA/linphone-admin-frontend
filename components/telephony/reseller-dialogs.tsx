@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Loader2, PauseCircle, PlayCircle } from "lucide-react";
+import { KeyRound, Loader2, PauseCircle, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -13,9 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useTelephony } from "@/contexts/telephony-context";
 import { formatDate, toDateInput } from "@/lib/telephony/status";
-import type { SipAccount } from "@/lib/telephony/types";
-
-const SIP_DOMAIN = "test.kryptoline.com";
+import type { Reseller } from "@/lib/telephony/types";
 
 const inputClass =
   "h-11 w-full rounded-xl bg-background px-4 text-sm outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring";
@@ -23,8 +21,6 @@ const primaryBtn =
   "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-module px-5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-60";
 const ghostBtn =
   "inline-flex h-11 items-center justify-center rounded-xl bg-secondary px-5 text-sm font-medium";
-const dangerBtn =
-  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-destructive px-5 text-sm font-semibold text-destructive-foreground transition-transform active:scale-[0.98] disabled:opacity-60";
 
 function Label({
   htmlFor,
@@ -40,14 +36,14 @@ function Label({
   );
 }
 
-export function CreateAccountDialog({
+export function CreateResellerDialog({
   open,
   onOpenChange,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const { createAccount } = useTelephony();
+  const { createReseller } = useTelephony();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [expiresAt, setExpiresAt] = useState(
@@ -60,6 +56,9 @@ export function CreateAccountDialog({
   function reset() {
     setUsername("");
     setPassword("");
+    setExpiresAt(
+      toDateInput(new Date(Date.now() + 365 * 86_400_000).toISOString()),
+    );
     setErrors({});
     setState("idle");
     setServerError("");
@@ -68,11 +67,9 @@ export function CreateAccountDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const next: Record<string, string> = {};
-    if (!/^[\w.-]{1,64}$/.test(username))
-      next["username"] =
-        "Use letters, numbers, dots, underscores or hyphens only — no spaces.";
+    if (!username.trim()) next["username"] = "Username is required.";
     if (!password.trim())
-      next["password"] = "A password is required to register the identity.";
+      next["password"] = "A password is required for the reseller login.";
     if (new Date(expiresAt).getTime() <= Date.now())
       next["expiresAt"] = "Expiry must be in the future.";
     setErrors(next);
@@ -80,19 +77,19 @@ export function CreateAccountDialog({
 
     setState("loading");
     try {
-      const created = await createAccount({
-        sipId: `${username}@${SIP_DOMAIN}`,
+      const created = await createReseller({
+        username: username.trim(),
         password,
         expiresAt,
       });
-      toast.success(`${created.sipId} provisioned`, {
-        description: `Active until ${formatDate(created.expiresAt)}.`,
+      toast.success(`${created.username} added as a reseller`, {
+        description: `Active until ${formatDate(created.expiresAt ?? expiresAt)}.`,
       });
       reset();
       onOpenChange(false);
     } catch (err) {
       setServerError(
-        err instanceof Error ? err.message : "Provisioning failed.",
+        err instanceof Error ? err.message : "Could not create the reseller.",
       );
       setState("error");
     }
@@ -108,23 +105,23 @@ export function CreateAccountDialog({
       <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-[20px] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            Provision a SIP account
+            Add a reseller
           </DialogTitle>
           <DialogDescription>
-            The identity is registered on the Flexisip cluster immediately and
-            starts in the active state until the expiry date you set.
+            The reseller gets an active login immediately with the username and
+            password you set below.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4" noValidate>
           <div className="space-y-2">
-            <Label htmlFor="c-sip">SIP username</Label>
+            <Label htmlFor="rc-username">Username</Label>
             <input
-              id="c-sip"
+              id="rc-username"
               className={inputClass}
               value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
-              placeholder="4210"
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="d.moreau@lineabridge.fr"
               aria-invalid={!!errors["username"]}
             />
             {errors["username"] ? (
@@ -135,9 +132,9 @@ export function CreateAccountDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="c-password">Password</Label>
+            <Label htmlFor="rc-password">Password</Label>
             <input
-              id="c-password"
+              id="rc-password"
               type="password"
               autoComplete="new-password"
               className={inputClass}
@@ -153,9 +150,9 @@ export function CreateAccountDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="c-exp">Expiry date</Label>
+            <Label htmlFor="rc-exp">Expiry date</Label>
             <input
-              id="c-exp"
+              id="rc-exp"
               type="date"
               className={inputClass}
               value={expiresAt}
@@ -198,7 +195,7 @@ export function CreateAccountDialog({
               {state === "loading" ? (
                 <Loader2 aria-hidden="true" className="size-4 animate-spin" />
               ) : null}
-              {state === "loading" ? "Provisioning…" : "Provision account"}
+              {state === "loading" ? "Adding…" : "Add reseller"}
             </button>
           </DialogFooter>
         </form>
@@ -207,17 +204,17 @@ export function CreateAccountDialog({
   );
 }
 
-export function RenewDialog({
-  account,
+export function RenewResellerDialog({
+  reseller,
   onClose,
 }: {
-  account: SipAccount | null;
+  reseller: Reseller | null;
   onClose: () => void;
 }) {
-  const { renewAccount } = useTelephony();
+  const { renewReseller } = useTelephony();
   const [date, setDate] = useState("");
   const [loading, setLoading] = useState(false);
-  const current = account?.expiresAt ?? new Date().toISOString();
+  const current = reseller?.expiresAt ?? new Date().toISOString();
   const value =
     date ||
     toDateInput(
@@ -226,7 +223,7 @@ export function RenewDialog({
 
   return (
     <Dialog
-      open={!!account}
+      open={!!reseller}
       onOpenChange={(v) => {
         if (!v) {
           setDate("");
@@ -237,21 +234,21 @@ export function RenewDialog({
       <DialogContent className="rounded-[20px] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            Renew account
+            Renew reseller
           </DialogTitle>
           <DialogDescription>
-            Choose any expiry date. Renewing an expired account restores it to
-            active immediately.
+            Choose any expiry date. Renewing an expired or disabled reseller
+            restores it to active immediately.
           </DialogDescription>
         </DialogHeader>
 
-        <p className="font-mono text-sm break-all">{account?.sipId}</p>
+        <p className="font-mono text-sm break-all">{reseller?.username}</p>
 
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl bg-background p-4">
           <div>
             <p className="label-meta">Current expiry</p>
             <p className="mt-1.5 text-sm">
-              {account ? formatDate(account.expiresAt) : "—"}
+              {reseller?.expiresAt ? formatDate(reseller.expiresAt) : "—"}
             </p>
           </div>
           <span aria-hidden="true" className="text-muted-foreground">
@@ -266,9 +263,9 @@ export function RenewDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="r-date">New expiry date</Label>
+          <Label htmlFor="rr-date">New expiry date</Label>
           <input
-            id="r-date"
+            id="rr-date"
             type="date"
             className={inputClass}
             value={value}
@@ -286,11 +283,11 @@ export function RenewDialog({
             className={primaryBtn}
             disabled={loading}
             onClick={async () => {
-              if (!account) return;
+              if (!reseller) return;
               setLoading(true);
               try {
-                await renewAccount(account.id, value);
-                toast.success(`${account.sipId} renewed`, {
+                await renewReseller(reseller.id, value);
+                toast.success(`${reseller.username} renewed`, {
                   description: `Now valid until ${formatDate(new Date(value).toISOString())}.`,
                 });
                 setDate("");
@@ -315,19 +312,122 @@ export function RenewDialog({
   );
 }
 
-export function DisableDialog({
-  account,
+export function ResetResellerPasswordDialog({
+  reseller,
   onClose,
 }: {
-  account: SipAccount | null;
+  reseller: Reseller | null;
   onClose: () => void;
 }) {
-  const { setDisabled } = useTelephony();
+  const { resetResellerPassword } = useTelephony();
+  const [newPassword, setNewPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const enabling = account?.disabled === true;
+
+  function handleClose() {
+    setNewPassword("");
+    setError("");
+    onClose();
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reseller) return;
+    if (!newPassword.trim()) {
+      setError("Enter a new password.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      await resetResellerPassword(reseller.id, newPassword);
+      toast.success(`Password reset for ${reseller.username}`);
+      handleClose();
+    } catch {
+      toast.error("Reset failed", {
+        description: "The backend rejected the request. Try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <Dialog open={!!account} onOpenChange={(v) => (!v ? onClose() : undefined)}>
+    <Dialog
+      open={!!reseller}
+      onOpenChange={(v) => (!v ? handleClose() : undefined)}
+    >
+      <DialogContent className="rounded-[20px] sm:max-w-md">
+        <DialogHeader>
+          <span
+            aria-hidden="true"
+            className="grid size-10 place-items-center rounded-2xl bg-neutral-pill text-muted-foreground"
+          >
+            <KeyRound className="size-5" />
+          </span>
+          <DialogTitle className="font-display text-xl">
+            Reset password
+          </DialogTitle>
+          <DialogDescription>
+            Set a new password for this reseller&apos;s login. They&apos;ll need
+            to use it the next time they sign in.
+          </DialogDescription>
+        </DialogHeader>
+
+        <p className="font-mono text-sm break-all">{reseller?.username}</p>
+
+        <form onSubmit={submit} className="space-y-4" noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="rp-password">New password</Label>
+            <input
+              id="rp-password"
+              type="password"
+              autoComplete="new-password"
+              className={inputClass}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              aria-invalid={!!error}
+            />
+            {error ? (
+              <p role="alert" className="text-xs text-negative-foreground">
+                {error}
+              </p>
+            ) : null}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button type="button" className={ghostBtn} onClick={handleClose}>
+              Cancel
+            </button>
+            <button type="submit" className={primaryBtn} disabled={loading}>
+              {loading ? (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+              ) : null}
+              {loading ? "Saving…" : "Reset password"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function DisableResellerDialog({
+  reseller,
+  onClose,
+}: {
+  reseller: Reseller | null;
+  onClose: () => void;
+}) {
+  const { setResellerStatus } = useTelephony();
+  const [loading, setLoading] = useState(false);
+  const enabling = reseller?.status === "disabled";
+
+  return (
+    <Dialog
+      open={!!reseller}
+      onOpenChange={(v) => (!v ? onClose() : undefined)}
+    >
       <DialogContent className="rounded-[20px] sm:max-w-md">
         <DialogHeader>
           <span
@@ -341,16 +441,21 @@ export function DisableDialog({
             )}
           </span>
           <DialogTitle className="font-display text-xl">
-            {enabling ? "Re-enable this account?" : "Disable this account?"}
+            {enabling ? "Reactivate this reseller?" : "Disable this reseller?"}
           </DialogTitle>
           <DialogDescription>
             {enabling
-              ? "Registration is restored and the account resumes its existing expiry date. Nothing else changes."
-              : "The account stays in the system with all its data and history — it simply stops registering and cannot place or receive calls. You can re-enable it at any time. This is not a deletion."}
+              ? "The reseller regains its login and can resume creating and managing accounts immediately."
+              : "The reseller stays in the system with all its data and history — it simply loses its login and cannot create or manage accounts. You can reactivate it at any time. This is not a deletion."}
           </DialogDescription>
         </DialogHeader>
 
-        <p className="font-mono text-sm break-all">{account?.sipId}</p>
+        <p className="font-mono text-sm break-all">{reseller?.username}</p>
+        {reseller ? (
+          <p className="text-xs text-muted-foreground">
+            Reseller since {formatDate(reseller.createdAt)}
+          </p>
+        ) : null}
 
         <DialogFooter className="gap-2 sm:gap-2">
           <button type="button" className={ghostBtn} onClick={onClose}>
@@ -361,23 +466,26 @@ export function DisableDialog({
             className={primaryBtn}
             disabled={loading}
             onClick={async () => {
-              if (!account) return;
+              if (!reseller) return;
               setLoading(true);
               try {
-                await setDisabled(account.id, !account.disabled);
+                await setResellerStatus(
+                  reseller.id,
+                  enabling ? "active" : "disabled",
+                );
                 toast.success(
                   enabling
-                    ? `${account.sipId} re-enabled`
-                    : `${account.sipId} disabled`,
+                    ? `${reseller.username} reactivated`
+                    : `${reseller.username} disabled`,
                   {
                     description: enabling
-                      ? "The account is registering again."
-                      : "The account remains in the system, inactive.",
+                      ? "The reseller can sign in again."
+                      : "The reseller's login is suspended.",
                   },
                 );
                 onClose();
               } catch {
-                toast.error(enabling ? "Re-enable failed" : "Disable failed", {
+                toast.error(enabling ? "Reactivate failed" : "Disable failed", {
                   description: "The backend rejected the request. Try again.",
                 });
               } finally {
@@ -388,109 +496,7 @@ export function DisableDialog({
             {loading ? (
               <Loader2 aria-hidden="true" className="size-4 animate-spin" />
             ) : null}
-            {enabling ? "Re-enable account" : "Disable account"}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function DeleteDialog({
-  account,
-  onClose,
-}: {
-  account: SipAccount | null;
-  onClose: () => void;
-}) {
-  const { deleteAccount } = useTelephony();
-  const [confirm, setConfirm] = useState("");
-  const [loading, setLoading] = useState(false);
-  const matches = account ? confirm.trim() === account.sipId : false;
-
-  return (
-    <Dialog
-      open={!!account}
-      onOpenChange={(v) => {
-        if (!v) {
-          setConfirm("");
-          onClose();
-        }
-      }}
-    >
-      <DialogContent className="rounded-[20px] sm:max-w-md">
-        <DialogHeader>
-          <span
-            aria-hidden="true"
-            className="grid size-10 place-items-center rounded-2xl bg-negative-muted text-negative-foreground"
-          >
-            <AlertTriangle className="size-5" />
-          </span>
-          <DialogTitle className="font-display text-xl text-negative-foreground">
-            Permanently delete this account
-          </DialogTitle>
-          <DialogDescription>
-            This erases the SIP identity, its registration and its provisioning
-            history from the cluster. It cannot be undone and cannot be
-            recovered. If you only want to pause service, disable the account
-            instead.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-2">
-          <Label htmlFor="d-confirm">
-            Type{" "}
-            <span className="font-mono text-foreground">{account?.sipId}</span>{" "}
-            to confirm
-          </Label>
-          <input
-            id="d-confirm"
-            className={inputClass}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
-
-        <DialogFooter className="gap-2 sm:gap-2">
-          <button
-            type="button"
-            className={ghostBtn}
-            onClick={() => {
-              setConfirm("");
-              onClose();
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={dangerBtn}
-            disabled={!matches || loading}
-            onClick={async () => {
-              if (!account) return;
-              setLoading(true);
-              try {
-                await deleteAccount(account.id);
-                toast.success(`${account.sipId} deleted`, {
-                  description:
-                    "The identity has been removed from the cluster.",
-                });
-                setConfirm("");
-                onClose();
-              } catch {
-                toast.error("Delete failed", {
-                  description: "The backend rejected the request. Try again.",
-                });
-              } finally {
-                setLoading(false);
-              }
-            }}
-          >
-            {loading ? (
-              <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-            ) : null}
-            {loading ? "Deleting…" : "Delete permanently"}
+            {enabling ? "Reactivate reseller" : "Disable reseller"}
           </button>
         </DialogFooter>
       </DialogContent>

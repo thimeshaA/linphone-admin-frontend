@@ -102,7 +102,7 @@ export function PageHeader({
                 aria-hidden="true"
                 className="size-1.5 rounded-full bg-module"
               />
-              <span className="text-module">
+              <span className="text-module-strong">
                 {module === "sip" ? "SIP" : "eSIM"}
               </span>
               <span aria-hidden="true" className="opacity-40">

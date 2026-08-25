@@ -1,4 +1,4 @@
-import type { AccountStatus, SipAccount } from "./types";
+import type { AccountStatus, Reseller, SipAccount } from "./types";
 
 export const EXPIRING_WINDOW_DAYS = 30;
 
@@ -9,6 +9,21 @@ export function daysUntil(iso: string) {
 export function accountStatus(account: SipAccount): AccountStatus {
   if (account.disabled) return "disabled";
   const d = daysUntil(account.expiresAt);
+  if (d < 0) return "expired";
+  if (d <= EXPIRING_WINDOW_DAYS) return "expiring";
+  return "active";
+}
+
+/**
+ * Live client-side status, same precedence as `accountStatus()`: a manual
+ * disable always wins, then a past/near expiry — so "expiring soon" shows up
+ * without waiting on the backend's lazy expiry check (which only runs on the
+ * reseller's next login attempt).
+ */
+export function resellerStatus(r: Reseller): AccountStatus {
+  if (r.status === "disabled") return "disabled";
+  if (!r.expiresAt) return r.status === "expired" ? "expired" : "active";
+  const d = daysUntil(r.expiresAt);
   if (d < 0) return "expired";
   if (d <= EXPIRING_WINDOW_DAYS) return "expiring";
   return "active";

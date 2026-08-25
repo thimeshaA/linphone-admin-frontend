@@ -11,7 +11,6 @@ export function permissionsFor(user: MockUser | null): Set<string> {
   if (user.role === "admin") {
     return new Set([
       "platform.overview",
-      "platform.approvals",
       "platform.reports",
       "platform.notifications",
       "platform.settings",

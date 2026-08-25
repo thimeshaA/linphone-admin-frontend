@@ -1,16 +1,30 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ScrollText } from "lucide-react";
+import { ArrowUpRight, Search, Users } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
 import {
   EmptyState,
   PageHeader,
   StatBlock,
 } from "@/components/telephony/primitives";
+import { StatusPill } from "@/components/telephony/status-pill";
+import {
+  AccountsTrendChart,
+  ActiveDisabledSplit,
+  StatusDonutChart,
+  TopResellersChart,
+} from "@/components/telephony/dashboard-charts";
 import { useTelephony } from "@/contexts/telephony-context";
-import { accountStatus } from "@/lib/telephony/status";
+import { accountStatus, resellerStatus } from "@/lib/telephony/status";
+import {
+  getAccountStatusBreakdown,
+  getAccountsCreatedByDay,
+  getResellerAccountStats,
+  type ResellerAccountStats,
+} from "@/lib/telephony/derived";
+import { cn } from "@/lib/utils";
 
 export function SipDashboardClient() {
   return (
@@ -21,7 +35,8 @@ export function SipDashboardClient() {
 }
 
 function SipDashboardPage() {
-  const { user, visibleAccounts, auditEvents } = useTelephony();
+  const { user, visibleAccounts, accounts, resellers, resellersLoading } =
+    useTelephony();
   const isAdmin = user?.role === "admin";
 
   const stats = useMemo(() => {
@@ -34,7 +49,18 @@ function SipDashboardPage() {
     };
   }, [visibleAccounts]);
 
-  const recent = auditEvents.filter((e) => e.module === "sip").slice(0, 5);
+  const statusBreakdown = useMemo(
+    () => getAccountStatusBreakdown(visibleAccounts),
+    [visibleAccounts],
+  );
+  const trend = useMemo(
+    () => getAccountsCreatedByDay(visibleAccounts, 30),
+    [visibleAccounts],
+  );
+  const resellerStats = useMemo(
+    () => (isAdmin ? getResellerAccountStats(resellers, accounts) : []),
+    [isAdmin, resellers, accounts],
+  );
 
   return (
     <div className="space-y-10">
@@ -44,17 +70,8 @@ function SipDashboardPage() {
         title="SIP dashboard"
         description={
           isAdmin
-            ? "Registration health across every SIP identity on the cluster."
-            : "Registration health for the accounts your organisation created."
-        }
-        actions={
-          <Link
-            href="/sip/accounts"
-            className="module-bg inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-transform active:scale-[0.98]"
-          >
-            Manage accounts
-            <ArrowUpRight aria-hidden="true" className="size-4" />
-          </Link>
+            ? "Registration health and account analytics across every SIP identity on the cluster."
+            : "Registration health and account analytics for the accounts your organisation created."
         }
       />
 
@@ -83,55 +100,304 @@ function SipDashboardPage() {
         />
       </section>
 
-      {isAdmin ? (
-        <section aria-labelledby="recent-activity" className="space-y-4">
-          <h2 id="recent-activity" className="label-meta">
-            Recent activity
-          </h2>
-          {recent.length === 0 ? (
-            <div className="glass rounded-[20px]">
+      <section
+        aria-label="Analytics"
+        className={cn(
+          "grid gap-6",
+          isAdmin ? "lg:grid-cols-3" : "lg:grid-cols-2",
+        )}
+      >
+        <ChartCard
+          title="Status distribution"
+          description="Active, expiring and disabled accounts."
+        >
+          <StatusDonutChart breakdown={statusBreakdown} />
+        </ChartCard>
+
+        {isAdmin ? (
+          <ChartCard
+            title="Top resellers"
+            description="Ranked by total accounts created."
+          >
+            {resellersLoading ? (
               <EmptyState
-                icon={<ScrollText aria-hidden="true" className="size-5" />}
-                title="No activity recorded yet"
-                description="Account changes made this session will appear here."
-                action={
-                  <Link
-                    href="/sip/audit-logs"
-                    className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-medium"
-                  >
-                    View full audit log
-                  </Link>
-                }
+                title="Loading resellers…"
+                description="Fetching reseller totals from the cluster."
               />
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {recent.map((e) => (
-                <li
-                  key={e.id}
-                  className="glass flex items-center justify-between gap-4 rounded-[16px] px-5 py-3.5"
-                >
-                  <p className="min-w-0 truncate text-sm">
-                    <span className="font-medium">{e.target}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      — {e.action
-                        .replace("account.", "")
-                        .replace(".", " ")} by {e.actorName}
-                    </span>
-                  </p>
-                  <span className="label-meta shrink-0">
-                    {new Date(e.at).toLocaleTimeString("en-GB", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+            ) : (
+              <TopResellersChart stats={resellerStats} />
+            )}
+          </ChartCard>
+        ) : null}
+
+        <ChartCard title="Accounts created" description="Last 30 days, by day.">
+          <AccountsTrendChart series={trend} />
+        </ChartCard>
+      </section>
+
+      {isAdmin ? (
+        <ResellerBreakdownTable
+          stats={resellerStats}
+          loading={resellersLoading}
+        />
       ) : null}
     </div>
+  );
+}
+
+function ChartCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="glass space-y-4 rounded-[20px] p-5">
+      <div>
+        <h3 className="font-display text-sm font-semibold">{title}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+type ResellerSort = "accounts" | "created" | "username";
+const PAGE_SIZE = 8;
+
+function ResellerBreakdownTable({
+  stats,
+  loading,
+}: {
+  stats: ResellerAccountStats[];
+  loading: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<ResellerSort>("accounts");
+  const [page, setPage] = useState(0);
+
+  const rows = stats.filter((s) => {
+    const q = query.trim().toLowerCase();
+    return !q || s.reseller.username.toLowerCase().includes(q);
+  });
+
+  const sortedRows = [...rows].sort((a, b) => {
+    if (sort === "username")
+      return a.reseller.username.localeCompare(b.reseller.username);
+    if (sort === "created")
+      return +new Date(b.reseller.createdAt) - +new Date(a.reseller.createdAt);
+    return b.total - a.total;
+  });
+
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount - 1);
+  const pageRows = sortedRows.slice(
+    current * PAGE_SIZE,
+    current * PAGE_SIZE + PAGE_SIZE,
+  );
+
+  return (
+    <section aria-label="Reseller breakdown" className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="label-meta">By reseller</h2>
+      </div>
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative lg:w-80">
+          <Search
+            aria-hidden="true"
+            className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            type="search"
+            aria-label="Search resellers"
+            placeholder="Search by username"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
+            className="glass h-11 w-full rounded-xl border-0 pl-11 pr-4 text-sm outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="sr-only" htmlFor="reseller-breakdown-sort">
+            Sort resellers
+          </label>
+          <select
+            id="reseller-breakdown-sort"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as ResellerSort)}
+            className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="accounts">Sort: accounts (high–low)</option>
+            <option value="created">Sort: newest</option>
+            <option value="username">Sort: username</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="glass rounded-[20px]">
+          <EmptyState
+            title="Loading resellers…"
+            description="Fetching the current reseller list from the cluster."
+          />
+        </div>
+      ) : sortedRows.length === 0 ? (
+        <div className="glass rounded-[20px]">
+          <EmptyState
+            icon={<Users aria-hidden="true" className="size-5" />}
+            title={
+              query ? "No resellers match that search" : "No resellers yet"
+            }
+            description={
+              query
+                ? "Try a different search term to see the full list."
+                : "Reseller breakdown appears once resellers are provisioned."
+            }
+          />
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="glass hidden overflow-x-auto rounded-[20px] md:block">
+            <table className="w-full min-w-[760px] text-sm">
+              <caption className="sr-only">
+                Resellers with total accounts, active/disabled split and status
+              </caption>
+              <thead>
+                <tr className="border-b border-border">
+                  {[
+                    "Reseller",
+                    "Total accounts",
+                    "Active / disabled",
+                    "Status",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      scope="col"
+                      className="label-meta px-5 py-3.5 text-left"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                  <th scope="col" className="label-meta px-5 py-3.5 text-right">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map(({ reseller, total, active, disabled }) => (
+                  <tr
+                    key={reseller.id}
+                    className="border-b border-border last:border-0 hover:bg-accent/30"
+                  >
+                    <th
+                      scope="row"
+                      className="px-5 py-4 text-left font-mono text-xs font-normal"
+                    >
+                      {reseller.username}
+                    </th>
+                    <td className="px-5 py-4 tabular-nums">{total}</td>
+                    <td className="px-5 py-4">
+                      <ActiveDisabledSplit
+                        active={active}
+                        disabled={disabled}
+                      />
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusPill status={resellerStatus(reseller)} />
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center justify-end">
+                        <Link
+                          href={`/sip/accounts?reseller=${reseller.id}`}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-secondary px-3 text-xs font-semibold"
+                        >
+                          View accounts
+                          <ArrowUpRight
+                            aria-hidden="true"
+                            className="size-3.5"
+                          />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <ul className="space-y-3 md:hidden">
+            {pageRows.map(({ reseller, total, active, disabled }) => (
+              <li key={reseller.id} className="glass rounded-[20px] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="truncate font-mono text-sm font-medium">
+                    {reseller.username}
+                  </p>
+                  <StatusPill
+                    status={resellerStatus(reseller)}
+                    className="shrink-0"
+                  />
+                </div>
+                <dl className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <dt className="label-meta">Total accounts</dt>
+                    <dd className="mt-1 text-sm tabular-nums">{total}</dd>
+                  </div>
+                  <div>
+                    <dt className="label-meta">Active / disabled</dt>
+                    <dd className="mt-1">
+                      <ActiveDisabledSplit
+                        active={active}
+                        disabled={disabled}
+                      />
+                    </dd>
+                  </div>
+                </dl>
+                <Link
+                  href={`/sip/accounts?reseller=${reseller.id}`}
+                  className="mt-4 flex h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary text-sm font-semibold"
+                >
+                  View accounts
+                  <ArrowUpRight aria-hidden="true" className="size-4" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex items-center justify-between gap-3">
+            <p className="label-meta">
+              {current * PAGE_SIZE + 1}–{current * PAGE_SIZE + pageRows.length}{" "}
+              of {sortedRows.length}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={current === 0}
+                onClick={() => setPage(current - 1)}
+                className="glass h-10 rounded-xl px-4 text-sm font-medium disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={current >= pageCount - 1}
+                onClick={() => setPage(current + 1)}
+                className="glass h-10 rounded-xl px-4 text-sm font-medium disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

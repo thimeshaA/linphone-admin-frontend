@@ -30,6 +30,18 @@
   initial-value: #abf43f;
 }
 
+@property --module-strong {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #abf43f;
+}
+
+@property --module-line {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #abf43f;
+}
+
 /*
  * Design system definition.
  *
@@ -97,6 +109,10 @@
   --color-sip: var(--sip);
   --color-esim: var(--esim);
   --color-glass-border: var(--glass-border);
+  --color-module-strong: var(--module-strong);
+  --color-module-line: var(--module-line);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
 }
 
 :root {
@@ -108,6 +124,25 @@
   --success: oklch(0.8879 0.2224 125.6);
   --ink: oklch(0.0863 0 0);
   --paper: oklch(1 0 0);
+
+  /* Light-theme tonal ramps (approved light color system). Hex, not oklch,
+     because these are exact brand-approved values — converting them would
+     risk drifting off-spec. Dark mode never reads these; it keeps the raw
+     neon --module treatment below untouched. */
+  --green-50: #f3fce3;
+  --green-600: #8ccf23;
+  --green-700: #4a7c15;
+  --green-800: #35590f;
+
+  --orange-50: #fdede4;
+  --orange-600: #d25e22;
+  --orange-700: #a34410;
+  --orange-800: #7a320b;
+
+  --cyan-50: #e3fbf9;
+  --cyan-600: #17b3a6;
+  --cyan-700: #0b6f6a;
+  --cyan-800: #075b57;
 
   /* contextual identity: green at platform level, orange in SIP, cyan in eSIM */
   --module: var(--success);
@@ -160,6 +195,13 @@
   --glass-border: oklch(0.0863 0 0 / 10%);
   --glass-highlight: oklch(1 0 0 / 70%);
   --glass-shadow: 0 24px 60px -32px oklch(0.0863 0 0 / 35%);
+
+  /* Ambient page-wash glow (see app-shell.tsx) — barely-there on white. */
+  --ambient-wash-tint: 5%;
+
+  /* space reserved above the floating mobile nav so content never hides
+     behind it: pill height + bottom offset + safe area. */
+  --mobile-nav-clearance: calc(5rem + env(safe-area-inset-bottom, 0px));
 }
 
 .dark {
@@ -204,23 +246,78 @@
   --glass-border: oklch(1 0 0 / 12%);
   --glass-highlight: oklch(1 0 0 / 16%);
   --glass-shadow: 0 28px 70px -34px oklch(0.0863 0 0 / 90%);
+
+  --ambient-wash-tint: 16%;
 }
 
-/* Module identity switching — the contextual layer, transitioned softly. */
+/* Module identity switching — the contextual layer, transitioned softly.
+ *
+ * --module-strong / --module-line / --module-tint-bg are the light-theme
+ * tonal roles (text/icons/borders/tints), kept off the raw neon 500 which
+ * is reserved for fills. The base rules below default them to var(--module)
+ * — i.e. the original raw-neon behavior — so dark mode is untouched by
+ * definition. Only the ":not(.dark)" block further down overrides them
+ * with tonal values, and only while light mode is active.
+ */
 [data-module] {
-  transition: --module 420ms ease;
+  transition:
+    --module 420ms ease,
+    --module-strong 420ms ease,
+    --module-line 420ms ease;
 }
 [data-module="sip"] {
   --module: var(--sip);
+  --module-strong: var(--module);
+  --module-line: var(--module);
+  --module-tint-bg: var(--module);
 }
 [data-module="none"] {
   --module: var(--success);
+  --module-strong: var(--module);
+  --module-line: var(--module);
+  --module-tint-bg: var(--module);
 }
 [data-module="esim"] {
   --module: var(--esim);
+  --module-strong: var(--module);
+  --module-line: var(--module);
+  --module-tint-bg: var(--module);
 }
 [data-module="success"] {
   --module: var(--success);
+  --module-strong: var(--module);
+  --module-line: var(--module);
+  --module-tint-bg: var(--module);
+}
+
+/*
+ * Light-mode-only tonal overrides. Written to match both the case where
+ * [data-module] sits on the same element as ".dark" (the <html> root —
+ * app-shell mirrors the active area's accent there for portalled dialogs/
+ * menus to inherit) and the case where it's a descendant (cards, nav
+ * items, badges). ":not(.dark)" means this block simply doesn't match
+ * once dark mode is active, so dark keeps the plain pass-through values
+ * declared above — this is what "dark mode locked" reduces to in code.
+ */
+:root:not(.dark)[data-module="sip"],
+:root:not(.dark) [data-module="sip"] {
+  --module-strong: var(--orange-800);
+  --module-line: var(--orange-700);
+  --module-tint-bg: var(--orange-50);
+}
+:root:not(.dark)[data-module="esim"],
+:root:not(.dark) [data-module="esim"] {
+  --module-strong: var(--cyan-800);
+  --module-line: var(--cyan-700);
+  --module-tint-bg: var(--cyan-50);
+}
+:root:not(.dark)[data-module="none"],
+:root:not(.dark) [data-module="none"],
+:root:not(.dark)[data-module="success"],
+:root:not(.dark) [data-module="success"] {
+  --module-strong: var(--green-800);
+  --module-line: var(--green-700);
+  --module-tint-bg: var(--green-50);
 }
 
 @layer base {
@@ -258,7 +355,10 @@
   box-shadow: var(--glass-shadow);
 }
 
-/* Glass that inherits the active module identity as a faint tint. */
+/* Glass that inherits the active module identity as a faint tint. Shared by
+ * the desktop rail/secondary-column active item and the mobile "more" sheet
+ * active item — same translucent wash in both themes, untouched by the
+ * dashboard-card-specific treatment below. */
 @utility glass-module {
   background-image: linear-gradient(
     150deg,
@@ -267,8 +367,42 @@
   );
   background-color: var(--glass-bg);
   backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
   border: 1px solid color-mix(in oklab, var(--module) 26%, var(--glass-border));
   box-shadow: var(--glass-shadow);
+}
+
+/*
+ * The 2 module cards on the overview dashboard only — deliberately its own
+ * utility rather than reusing .glass-module, so this card-specific look
+ * never bleeds into the nav active-item usages above.
+ *
+ * Dark mode: identical to .glass-module's wash (unchanged, approved look).
+ * Light mode: a solid white surface with a module-coloured border, no
+ * blur/shadow — text/icons already carry the module identity via
+ * module-tint + text-module-strong/-line, which are tuned for exactly
+ * this white/pale-surface case.
+ */
+@utility dashboard-module-card {
+  background-image: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--module) 12%, transparent),
+    transparent 58%
+  );
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid color-mix(in oklab, var(--module) 26%, var(--glass-border));
+  box-shadow: var(--glass-shadow);
+}
+
+:root:not(.dark) .dashboard-module-card {
+  background-image: none;
+  background-color: var(--paper);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: var(--module);
+  box-shadow: none;
 }
 
 @utility glass-hairline {
@@ -278,8 +412,251 @@
     position: absolute;
     inset: 0 0 auto 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--glass-highlight),
+      transparent
+    );
     pointer-events: none;
+  }
+}
+
+/* ==========================================================================
+ * Lens tab bar — floating mobile nav with a single draggable circular glass
+ * lens that optically magnifies whatever sits beneath it. See
+ * components/telephony/lens-tab-bar.tsx for the gesture/geometry logic;
+ * this is the static shell + theme tokens it renders into.
+ * ========================================================================== */
+
+:root {
+  --lens-tabbar-inactive: #3a3c38;
+  --lens-tabbar-bg: oklch(1 0 0 / 78%);
+  --lens-tabbar-rim: rgba(9, 9, 9, 0.14);
+  --lens-tabbar-specular: rgba(255, 255, 255, 0.9);
+  --lens-tabbar-glow: rgba(9, 9, 9, 0.18);
+  --lens-tabbar-contrast-bg: rgba(255, 255, 255, 0.94);
+  --lens-tabbar-capsule-neutral: color-mix(
+    in oklab,
+    var(--ink) 8%,
+    transparent
+  );
+  /* fixed brand hues for the chromatic fringe — same in both themes */
+  --lens-tabbar-fringe-esim: rgba(63, 244, 229, 0.55);
+  --lens-tabbar-fringe-sip: rgba(240, 121, 63, 0.45);
+}
+
+.dark {
+  --lens-tabbar-inactive: #b9bbb5;
+  --lens-tabbar-bg: oklch(0.0863 0 0 / 62%);
+  --lens-tabbar-rim: rgba(255, 255, 255, 0.5);
+  --lens-tabbar-specular: rgba(255, 255, 255, 0.16);
+  --lens-tabbar-glow: rgba(0, 0, 0, 0.55);
+  --lens-tabbar-contrast-bg: rgba(12, 12, 10, 0.94);
+  --lens-tabbar-capsule-neutral: color-mix(
+    in oklab,
+    var(--paper) 12%,
+    transparent
+  );
+}
+
+@utility lens-tabbar-root {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  height: 60px;
+  z-index: 40;
+  touch-action: none;
+}
+
+@utility lens-tabbar-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  background-color: var(--lens-tabbar-bg);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+@media (prefers-contrast: more) {
+  .lens-tabbar-glass,
+  .lens-tabbar-clip {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: var(--lens-tabbar-contrast-bg);
+  }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .lens-tabbar-glass,
+  .lens-tabbar-clip {
+    background-color: var(--lens-tabbar-contrast-bg);
+  }
+}
+
+@utility lens-tabbar-row {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-items: center;
+}
+
+/* Icon-only, identical layout in every state — centred glyph, no label.
+ * Active/magnified/dragging/resting only ever change via a transform:
+ * scale() on a shared ancestor and/or colour — never the layout, which is
+ * what previously produced double-printed labels like "More More". */
+@utility lens-tab {
+  position: relative;
+  display: flex;
+  min-width: 44px;
+  min-height: 44px;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--lens-tabbar-inactive);
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    opacity 120ms ease,
+    color 150ms ease;
+}
+
+/* Resting-active: the real (only) icon for this tab, painted on top of the
+ * capsule sitting behind it — see .lens-tabbar-capsule. */
+.lens-tab[data-active-rest="true"] {
+  color: var(--ink);
+}
+
+.lens-tab:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(9, 9, 9, 0.9),
+    0 0 0 3px var(--module);
+  border-radius: 9999px;
+}
+
+/* Colour lives ONLY on whichever copy currently has the magnet flag — the
+ * base row's flat glyphs never take on section colour, and the lens row
+ * only tints the one tab the lens is centred over. */
+[data-lens-magnet="true"] {
+  color: var(--module);
+}
+
+/* "More" has no section colour — it stays ink/neutral even when the lens
+ * passes over it, so it never inherits whatever --module happens to be
+ * ambient on the page (e.g. green on Overview). */
+.lens-tab[data-neutral="true"][data-lens-magnet="true"] {
+  color: var(--foreground);
+}
+
+/* A background shape only — no icon children. It sits BEFORE the row
+ * in DOM order (see lens-tab-bar.tsx) so the row's real content paints on
+ * top of it; the row's own layout never changes to accommodate it. */
+@utility lens-tabbar-capsule {
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  background-color: var(--module);
+  /* opacity/transform (the reveal) match the lens's own 240ms fade-out and
+     use the same spring as the position snap — it's meant to read as one
+     motion ("springs back in as the lens fades"), not a flat fade that
+     finishes early and pops to full colour ahead of everything else. */
+  transition:
+    left 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 130ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 130ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+.lens-tabbar-capsule[data-neutral="true"] {
+  background-color: var(--lens-tabbar-capsule-neutral);
+}
+.lens-tabbar-capsule[data-hidden="true"] {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.9);
+}
+
+/* Outer positioner — X position only, written per-frame via ref during a
+ * drag. Kept separate from the visual layer below so the 380ms release
+ * spring (position) and the 240ms fade/shrink (visual) can run as two
+ * independent transitions instead of fighting over one `transform`. Its
+ * width/height/top come from lens-tab-bar.tsx (LENS_WIDTH/LENS_HEIGHT/
+ * LENS_POS_TOP) as inline styles, so the 56x56 sizing has one source. */
+@utility lens-tabbar-lens-pos {
+  position: absolute;
+  left: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@utility lens-tabbar-lens-visual {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(0.72);
+  transition:
+    opacity 240ms ease-out,
+    transform 240ms ease-out;
+  will-change: transform, opacity;
+}
+.lens-tabbar-lens-visual[data-entering="true"] {
+  transition:
+    opacity 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.lens-tabbar-lens-visual[data-dragging="true"] {
+  opacity: 1;
+  transform: scale(1.06);
+}
+
+/* 56x56 box, fully round — a compact circular lens rather than a stretched
+ * pill. */
+@utility lens-tabbar-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  backdrop-filter: blur(2px) saturate(150%) brightness(1.06);
+  -webkit-backdrop-filter: blur(2px) saturate(150%) brightness(1.06);
+  background-color: color-mix(in oklab, var(--lens-tabbar-bg) 70%, transparent);
+}
+
+/* height/top come from lens-tab-bar.tsx (BAR_HEIGHT/LENS_ROW_TOP) as inline
+ * styles — see the comment on .lens-tabbar-lens-pos above. */
+@utility lens-tabbar-lens-row {
+  position: absolute;
+  display: grid;
+  align-items: center;
+  will-change: transform;
+}
+
+@utility lens-tabbar-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px var(--lens-tabbar-rim),
+    inset 0 1px 0 var(--lens-tabbar-specular),
+    0 8px 20px var(--lens-tabbar-glow),
+    0 -1px 3px var(--lens-tabbar-fringe-esim),
+    0 1px 3px var(--lens-tabbar-fringe-sip);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lens-tabbar-lens-pos,
+  .lens-tabbar-lens-visual,
+  .lens-tabbar-lens-row,
+  .lens-tabbar-capsule {
+    transition-duration: 1ms !important;
   }
 }
 
@@ -313,7 +690,20 @@
   color: var(--ink);
 }
 
+/* Icon swatches, ModuleTag/status-pill backgrounds. Same two-rule split as
+ * .glass-module and for the same reason — see the comment there.
+ *
+ * Light mode uses the approved tonal surface (--module-tint-bg, the "50"
+ * ramp) with 800-weight text (--module-strong) instead of raw neon-on-
+ * near-white. Dark mode is restated explicitly below so it stays exactly
+ * the original translucent-tint + raw-neon-text treatment.
+ */
 @utility module-tint {
+  background-color: var(--module-tint-bg);
+  color: var(--module-strong);
+}
+
+.dark .module-tint {
   background-color: color-mix(in oklab, var(--module) 14%, transparent);
   color: var(--module);
 }

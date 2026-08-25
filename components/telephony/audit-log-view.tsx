@@ -14,11 +14,41 @@ const ACTION_LABEL: Record<AuditAction, string> = {
   "account.disabled": "Account disabled",
   "account.enabled": "Account re-enabled",
   "account.deleted": "Account deleted",
-  "request.approved": "Request approved",
-  "request.rejected": "Request rejected",
+  "reseller.created": "Reseller created",
+  "reseller.renewed": "Reseller renewed",
+  "reseller.password_reset": "Reseller password reset",
+  "reseller.disabled": "Reseller disabled",
+  "reseller.enabled": "Reseller re-enabled",
 };
 
-export function AuditLogView({ module }: { module: ModuleKey }) {
+type Scope = "reseller" | "account";
+
+const SCOPE_COPY: Record<
+  Scope,
+  { eyebrow: string; title: string; description: string }
+> = {
+  reseller: {
+    eyebrow: "Reseller management",
+    title: "Reseller audit logs",
+    description:
+      "Every create, renew, disable and password action recorded for reseller logins this session.",
+  },
+  account: {
+    eyebrow: "Account management",
+    title: "Account audit logs",
+    description:
+      "Every create, renew, disable and delete action recorded for accounts this session.",
+  },
+};
+
+export function AuditLogView({
+  module,
+  scope,
+}: {
+  module: ModuleKey;
+  /** Restricts to reseller.* or account.* actions — omit for the unified view. */
+  scope?: Scope;
+}) {
   const { user, auditEvents } = useTelephony();
 
   if (user?.role !== "admin") {
@@ -30,15 +60,21 @@ export function AuditLogView({ module }: { module: ModuleKey }) {
     );
   }
 
-  const rows = auditEvents.filter((e) => e.module === module);
+  const rows = auditEvents.filter(
+    (e) => e.module === module && (!scope || e.action.startsWith(`${scope}.`)),
+  );
+  const copy = scope ? SCOPE_COPY[scope] : null;
 
   return (
     <div className="space-y-10">
       <PageHeader
         module={module}
-        eyebrow="Accountability"
-        title="Audit logs"
-        description={`Every create, renew, disable, delete and approval decision recorded for ${MODULE_LABEL[module]} this session.`}
+        eyebrow={copy?.eyebrow ?? "Accountability"}
+        title={copy?.title ?? "Audit logs"}
+        description={
+          copy?.description ??
+          `Every create, renew, disable, delete and approval decision recorded for ${MODULE_LABEL[module]} this session.`
+        }
       />
 
       {rows.length === 0 ? (

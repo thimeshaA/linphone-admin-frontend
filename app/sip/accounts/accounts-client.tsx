@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   MoreHorizontal,
   PauseCircle,
@@ -8,6 +9,7 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
 import {
@@ -20,7 +22,6 @@ import {
   CreateAccountDialog,
   DeleteDialog,
   DisableDialog,
-  RenewDialog,
 } from "@/components/telephony/account-dialogs";
 import {
   DropdownMenu,
@@ -47,52 +48,67 @@ const PAGE_SIZE = 8;
 export function SipAccountsClient() {
   return (
     <AppShell>
-      <SipAccountsPage />
+      <Suspense fallback={null}>
+        <SipAccountsPage />
+      </Suspense>
     </AppShell>
   );
 }
 
 function SipAccountsPage() {
-  const { user, visibleAccounts, hasModule } = useTelephony();
+  const { user, visibleAccounts, accountsLoading, hasModule, resellers } =
+    useTelephony();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const resellerFilter = searchParams.get("reseller");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<AccountStatus | "all">("all");
-  const [sort, setSort] = useState<"expiry" | "created" | "name">("expiry");
+  const [sort, setSort] = useState<"expiry" | "created" | "identifier">(
+    "expiry",
+  );
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
-  const [renewing, setRenewing] = useState<SipAccount | null>(null);
   const [toggling, setToggling] = useState<SipAccount | null>(null);
   const [deleting, setDeleting] = useState<SipAccount | null>(null);
 
   const isAdmin = user?.role === "admin";
+  const resellerFilterName = resellerFilter
+    ? (resellers.find((r) => r.id === resellerFilter)?.username ??
+      resellerFilter)
+    : null;
+
+  const accountsInScope = useMemo(
+    () =>
+      resellerFilter
+        ? visibleAccounts.filter((a) => a.createdById === resellerFilter)
+        : visibleAccounts,
+    [visibleAccounts, resellerFilter],
+  );
 
   const stats = useMemo(() => {
-    const s = visibleAccounts.map(accountStatus);
+    const s = accountsInScope.map(accountStatus);
     return {
-      total: visibleAccounts.length,
+      total: accountsInScope.length,
       active: s.filter((x) => x === "active").length,
       expiring: s.filter((x) => x === "expiring").length,
       inactive: s.filter((x) => x === "disabled" || x === "expired").length,
     };
-  }, [visibleAccounts]);
+  }, [accountsInScope]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = visibleAccounts.filter((a) => {
-      const matchQ =
-        !q ||
-        a.sipId.toLowerCase().includes(q) ||
-        a.displayName.toLowerCase().includes(q) ||
-        a.email.toLowerCase().includes(q);
+    const list = accountsInScope.filter((a) => {
+      const matchQ = !q || a.sipId.toLowerCase().includes(q);
       const matchF = filter === "all" || accountStatus(a) === filter;
       return matchQ && matchF;
     });
     return [...list].sort((a, b) => {
-      if (sort === "name") return a.displayName.localeCompare(b.displayName);
+      if (sort === "identifier") return a.sipId.localeCompare(b.sipId);
       if (sort === "created")
         return +new Date(b.createdAt) - +new Date(a.createdAt);
       return +new Date(a.expiresAt) - +new Date(b.expiresAt);
     });
-  }, [visibleAccounts, query, filter, sort]);
+  }, [accountsInScope, query, filter, sort]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = Math.min(page, pageCount - 1);
@@ -133,6 +149,23 @@ function SipAccountsPage() {
         }
       />
 
+      {resellerFilterName ? (
+        <div className="glass flex items-center justify-between gap-3 rounded-xl px-4 py-2.5">
+          <p className="text-sm">
+            Showing accounts created by{" "}
+            <span className="font-semibold">{resellerFilterName}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/sip/accounts")}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-secondary px-3 text-xs font-semibold"
+          >
+            <X aria-hidden="true" className="size-3.5" />
+            Clear
+          </button>
+        </div>
+      ) : null}
+
       <section
         aria-label="Overview"
         className="grid grid-cols-2 gap-6 lg:grid-cols-4"
@@ -168,7 +201,7 @@ function SipAccountsPage() {
             <input
               type="search"
               aria-label="Search accounts"
-              placeholder="Search identifier, name or email"
+              placeholder="Search by SIP identifier"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -215,12 +248,19 @@ function SipAccountsPage() {
             >
               <option value="expiry">Sort: expiry</option>
               <option value="created">Sort: newest</option>
-              <option value="name">Sort: name</option>
+              <option value="identifier">Sort: identifier</option>
             </select>
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {accountsLoading ? (
+          <div className="glass rounded-[20px]">
+            <EmptyState
+              title="Loading accounts…"
+              description="Fetching the current SIP account list from the cluster."
+            />
+          </div>
+        ) : rows.length === 0 ? (
           <div className="glass rounded-[20px]">
             <EmptyState
               title={
@@ -267,13 +307,7 @@ function SipAccountsPage() {
                 </caption>
                 <thead>
                   <tr className="border-b border-border">
-                    {[
-                      "Identifier",
-                      "Display name",
-                      "Status",
-                      "Expiry",
-                      "Created",
-                    ]
+                    {["Identifier", "Status", "Expiry", "Created"]
                       .concat(isAdmin ? ["Created by"] : [])
                       .map((h) => (
                         <th
@@ -305,14 +339,6 @@ function SipAccountsPage() {
                         {a.sipId}
                       </th>
                       <td className="px-5 py-4">
-                        <span className="block font-medium">
-                          {a.displayName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {a.email}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
                         <StatusPill status={accountStatus(a)} />
                       </td>
                       <td className="px-5 py-4 tabular-nums">
@@ -327,14 +353,7 @@ function SipAccountsPage() {
                         </td>
                       ) : null}
                       <td className="px-5 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setRenewing(a)}
-                            className="h-9 rounded-lg bg-secondary px-3 text-xs font-semibold"
-                          >
-                            Renew
-                          </button>
+                        <div className="flex items-center justify-end">
                           <RowMenu
                             account={a}
                             isAdmin={isAdmin}
@@ -355,8 +374,7 @@ function SipAccountsPage() {
                 <li key={a.id} className="glass rounded-[20px] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{a.displayName}</p>
-                      <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                      <p className="truncate font-mono text-sm font-medium">
                         {a.sipId}
                       </p>
                     </div>
@@ -381,14 +399,7 @@ function SipAccountsPage() {
                       </dd>
                     </div>
                   </dl>
-                  <div className="mt-4 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRenewing(a)}
-                      className="h-11 flex-1 rounded-xl bg-secondary text-sm font-semibold"
-                    >
-                      Renew
-                    </button>
+                  <div className="mt-4 flex items-center justify-end">
                     <RowMenu
                       account={a}
                       isAdmin={isAdmin}
@@ -429,7 +440,6 @@ function SipAccountsPage() {
       </section>
 
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <RenewDialog account={renewing} onClose={() => setRenewing(null)} />
       <DisableDialog account={toggling} onClose={() => setToggling(null)} />
       <DeleteDialog account={deleting} onClose={() => setDeleting(null)} />
     </div>

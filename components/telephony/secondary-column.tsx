@@ -6,6 +6,30 @@ import { PRIMARY_AREAS, type SecondaryItem } from "@/lib/telephony/nav-config";
 import { useTelephony } from "@/contexts/telephony-context";
 import { cn } from "@/lib/utils";
 
+/** Role-filters leaf links, then drops any section header left with no
+ * visible children under it — e.g. "Reseller Management" for a reseller,
+ * once every link beneath it is admin-only. */
+function visibleSecondaryItems(
+  items: SecondaryItem[],
+  isAdmin: boolean,
+): SecondaryItem[] {
+  const visible: SecondaryItem[] = [];
+  let pendingSection: SecondaryItem | null = null;
+  for (const item of items) {
+    if (item.kind === "section") {
+      pendingSection = item;
+      continue;
+    }
+    if (item.adminOnly && !isAdmin) continue;
+    if (pendingSection) {
+      visible.push(pendingSection);
+      pendingSection = null;
+    }
+    visible.push(item);
+  }
+  return visible;
+}
+
 /**
  * The workspace's detail navigation. Occupies real space in the desktop
  * flex row — mounted only while a workspace icon (or this column itself)
@@ -19,10 +43,7 @@ export function SecondaryColumn({ areaId }: { areaId: string | null }) {
   if (!area || area.children.length === 0) return null;
 
   const isAdmin = user?.role === "admin";
-  const children = area.children.filter(
-    (item: SecondaryItem) =>
-      item.kind === "section" || !item.adminOnly || isAdmin,
-  );
+  const children = visibleSecondaryItems(area.children, isAdmin);
 
   return (
     <aside
@@ -53,7 +74,7 @@ export function SecondaryColumn({ areaId }: { areaId: string | null }) {
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                 item.route === pathname
-                  ? "glass-module text-module"
+                  ? "glass-module text-module-line"
                   : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
               )}
             >

@@ -14,6 +14,18 @@ export interface MockUser {
   blurb: string;
 }
 
+export type ResellerStatus = "active" | "disabled" | "expired";
+
+/** A reseller login backed by the real /api/admins backend — SIP module only. */
+export interface Reseller {
+  id: string;
+  username: string;
+  status: ResellerStatus;
+  expiresAt: string | null;
+  expiredAt: string | null;
+  createdAt: string;
+}
+
 export type AccountStatus = "active" | "expiring" | "disabled" | "expired";
 
 export interface SipAccount {
@@ -30,24 +42,6 @@ export interface SipAccount {
 }
 
 export type RequestKind = "reseller" | "account";
-export type RequestStatus = "pending" | "approved" | "rejected";
-
-export interface AccessRequest {
-  id: string;
-  kind: RequestKind;
-  module: ModuleKey;
-  name: string;
-  email: string;
-  phone: string;
-  company?: string | undefined;
-  country?: string | undefined;
-  website?: string | undefined;
-  reason?: string | undefined;
-  note?: string | undefined;
-  submittedAt: string;
-  status: RequestStatus;
-  decisionReason?: string | undefined;
-}
 
 export type AuditAction =
   | "account.created"
@@ -55,8 +49,11 @@ export type AuditAction =
   | "account.disabled"
   | "account.enabled"
   | "account.deleted"
-  | "request.approved"
-  | "request.rejected";
+  | "reseller.created"
+  | "reseller.renewed"
+  | "reseller.password_reset"
+  | "reseller.disabled"
+  | "reseller.enabled";
 
 export interface AuditEvent {
   id: string;

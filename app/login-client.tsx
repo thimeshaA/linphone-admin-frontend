@@ -9,14 +9,16 @@ import { Brand } from "@/components/telephony/app-shell";
 import { ThemeToggle } from "@/components/telephony/theme-toggle";
 
 export function LoginClient() {
-  const { signIn, user, hydrated, users } = useTelephony();
+  const { signIn, user, hydrated } = useTelephony();
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<"credentials" | "general" | null>(null);
+  const [error, setError] = useState<
+    "credentials" | "disabled" | "general" | null
+  >(null);
 
   useEffect(() => {
     if (hydrated && user) {
@@ -32,10 +34,13 @@ export function LoginClient() {
       const signed = await signIn(identifier, password);
       router.push(signed.role === "enduser" ? "/my-account" : "/overview");
     } catch (err) {
+      const message = (err as Error).message;
       setError(
-        (err as Error).message === "INVALID_CREDENTIALS"
+        message === "INVALID_CREDENTIALS"
           ? "credentials"
-          : "general",
+          : message === "ACCOUNT_DISABLED"
+            ? "disabled"
+            : "general",
       );
     } finally {
       setLoading(false);
@@ -43,15 +48,18 @@ export function LoginClient() {
   }
 
   return (
-    <div className="min-h-dvh px-5 py-6 md:grid md:grid-cols-[1.05fr_1fr] md:gap-10 md:px-10 md:py-10">
-      <div className="flex items-center justify-between md:col-span-2">
+    <div
+      data-module="success"
+      className="flex min-h-dvh flex-col px-5 py-6 md:px-10 md:py-10"
+    >
+      <div className="flex items-center justify-between">
         <Brand />
         <ThemeToggle />
       </div>
 
       <main
         id="main"
-        className="mx-auto flex w-full max-w-md flex-col justify-center py-10 md:py-20"
+        className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10 md:py-20"
       >
         <p className="label-meta">Secure access</p>
         <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
@@ -118,7 +126,7 @@ export function LoginClient() {
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="size-4 accent-primary"
+              className="size-4 accent-secondary"
             />
             Keep me signed in on this device
           </label>
@@ -135,7 +143,9 @@ export function LoginClient() {
               <span>
                 {error === "credentials"
                   ? "Those credentials didn't match an account. Check the identifier and password, then try again."
-                  : "Authentication service is unreachable right now. Please retry in a moment."}
+                  : error === "disabled"
+                    ? "This account has been disabled. Contact your administrator for access."
+                    : "Authentication service is unreachable right now. Please retry in a moment."}
               </span>
             </div>
           ) : null}
@@ -143,7 +153,7 @@ export function LoginClient() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-module text-sm font-semibold text-background transition-transform active:scale-[0.99] disabled:opacity-70"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-module text-sm font-semibold text-ink transition-transform active:scale-[0.99] disabled:opacity-70"
           >
             {loading ? (
               <Loader2 aria-hidden="true" className="size-4 animate-spin" />
@@ -156,7 +166,7 @@ export function LoginClient() {
           Need an account or reseller access?{" "}
           <Link
             href="/request"
-            className="font-medium text-module underline-offset-4 hover:underline"
+            className="font-medium text-module-strong underline-offset-4 hover:underline"
           >
             Submit a request
           </Link>
@@ -164,37 +174,6 @@ export function LoginClient() {
           there is no self signup.
         </p>
       </main>
-
-      <aside className="mx-auto w-full max-w-md self-center glass rounded-[20px] p-6 md:max-w-none md:p-8">
-        <p className="label-meta">Prototype credentials — password “command”</p>
-        <ul className="mt-5 divide-y divide-border">
-          {users.map((u) => (
-            <li
-              key={u.id}
-              className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setIdentifier(u.identifier);
-                  setPassword("command");
-                  setError(null);
-                }}
-                className="text-left"
-              >
-                <span className="block font-mono text-xs text-module">
-                  {u.identifier}
-                </span>
-                <span className="mt-1 block text-sm">{u.blurb}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
-          This panel exists for evaluation only and would not ship with the
-          production authentication flow.
-        </p>
-      </aside>
     </div>
   );
 }

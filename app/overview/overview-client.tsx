@@ -17,13 +17,12 @@ export function OverviewClient() {
 }
 
 function OverviewPage() {
-  const { user, visibleAccounts, hasModule, requests } = useTelephony();
+  const { user, visibleAccounts, hasModule } = useTelephony();
   const sipCount = visibleAccounts.length;
   const attention = visibleAccounts.filter((a) => {
     const s = accountStatus(a);
     return s === "expiring" || s === "expired" || s === "disabled";
   }).length;
-  const pending = requests.filter((r) => r.status === "pending").length;
 
   return (
     <div className="space-y-10 ">
@@ -95,33 +94,6 @@ function OverviewPage() {
           )}
         </div>
       </section>
-
-      {user?.role === "admin" ? (
-        <section aria-labelledby="queue-summary" className="space-y-4">
-          <h2 id="queue-summary" className="label-meta">
-            Needs a decision
-          </h2>
-          <Link
-            href="/approvals"
-            className="glass flex items-center justify-between gap-4 rounded-[20px] px-6 py-5 transition-transform hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <div className="min-w-0">
-              <p className="font-display text-lg font-bold">
-                {pending} request{pending === 1 ? "" : "s"} waiting in the
-                approval queue
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Reseller applications and account requests from the public
-                intake form.
-              </p>
-            </div>
-            <ArrowUpRight
-              aria-hidden="true"
-              className="size-5 shrink-0 text-module"
-            />
-          </Link>
-        </section>
-      ) : null}
     </div>
   );
 }
@@ -149,16 +121,16 @@ function ModuleCard({
     <Link
       data-module={module}
       href={to}
-      className="glass-module group flex flex-col justify-between gap-8 rounded-[20px] p-6 transition-all duration-300 hover:-translate-y-1 active:translate-y-0 sm:p-7"
+      className="dashboard-module-card group flex flex-col justify-between gap-8 rounded-[20px] p-6 transition-all duration-300 hover:-translate-y-1 active:translate-y-0 sm:p-7"
     >
       <div>
         <div className="flex items-start justify-between gap-4">
-          <span className="module-tint grid size-11 place-items-center rounded-2xl transition-colors group-hover:bg-module group-hover:text-background">
+          <span className="module-tint grid size-11 place-items-center rounded-2xl transition-colors group-hover:bg-module group-hover:text-ink">
             {icon}
           </span>
           <span className="flex flex-wrap justify-end gap-2">{tags}</span>
         </div>
-        <h3 className="mt-5 font-display text-xl font-bold tracking-tight">
+        <h3 className="mt-5 font-display text-xl font-bold tracking-tight text-module-strong">
           {title}
         </h3>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -170,7 +142,7 @@ function ModuleCard({
           <span className="stat-figure block text-4xl text-module">{stat}</span>
           <span className="label-meta mt-1.5 block">{statLabel}</span>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-module">
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-module-strong">
           Open panel
           <ArrowUpRight
             aria-hidden="true"
@@ -193,6 +165,9 @@ function LockedCard({
   title: string;
   reason: string;
 }) {
+  // A locked module here always means "not approved as a reseller for it" —
+  // pre-select that combination on the public request form.
+  const requestHref = `/request?type=reseller&module=${module}`;
   return (
     <div
       data-module={module}
@@ -222,7 +197,7 @@ function LockedCard({
           <div className="h-2 w-2/3 rounded-full bg-muted" />
         </div>
         <Link
-          href="/request"
+          href={requestHref}
           className="module-bg inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition-transform active:scale-[0.99] sm:w-auto"
         >
           Request access

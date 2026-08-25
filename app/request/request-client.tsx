@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { useTelephony } from "@/contexts/telephony-context";
 import { Brand } from "@/components/telephony/app-shell";
@@ -66,19 +67,58 @@ const inputClass =
   "h-11 w-full glass rounded-xl px-4 text-sm outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring";
 
 export function RequestClient() {
+  return (
+    <Suspense fallback={null}>
+      <RequestForm />
+    </Suspense>
+  );
+}
+
+function RequestForm() {
   const { submitRequest } = useTelephony();
-  const [kind, setKind] = useState<RequestKind>("reseller");
-  const [module, setModule] = useState<ModuleKey>("sip");
+  const searchParams = useSearchParams();
+  const [kind, setKind] = useState<RequestKind>(() =>
+    searchParams.get("type") === "account" ? "account" : "reseller",
+  );
+  const [module, setModule] = useState<ModuleKey>(() => {
+    const requested = searchParams.get("module");
+    // "account" + "sip" is never a valid combination — see selectKind below.
+    if (requested === "sip" && searchParams.get("type") === "account")
+      return "esim";
+    return requested === "esim" ? "esim" : "sip";
+  });
   const [values, setValues] = useState<FormValues>({});
   const [errors, setErrors] = useState<Errors>({});
+  const [showValidationBanner, setShowValidationBanner] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
     "idle",
   );
+
+  // "Request an account" only ever applies to eSIM here — SIP accounts come
+  // from a reseller, not self-service — so switching to it while SIP is
+  // selected must not leave an invalid combination on screen.
+  function selectKind(next: RequestKind) {
+    setKind(next);
+    if (next === "account" && module === "sip") setModule("esim");
+  }
 
   const set =
     (k: FieldName) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setValues((v) => ({ ...v, [k]: e.target.value }) as FormValues);
+
+  // Field order matches the form's visual top-to-bottom order, so the first
+  // key present in `next` is always the first invalid field on screen.
+  const FIELD_ORDER: FieldName[] = [
+    "name",
+    "email",
+    "phone",
+    "company",
+    "country",
+    "website",
+    "reason",
+    "note",
+  ];
 
   function validate() {
     const next: Errors = {};
@@ -97,12 +137,29 @@ export function RequestClient() {
         next.reason = "Describe your business in at least 30 characters.";
     }
     setErrors(next);
+
+    // A validation failure has to be impossible to miss — silently blocking
+    // submit with only a small red line under one field reads as "the button
+    // is broken" if that field is scrolled out of view.
+    const firstInvalid = FIELD_ORDER.find((f) => next[f]);
+    if (firstInvalid) {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(firstInvalid);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.focus();
+      });
+    }
+
     return Object.keys(next).length === 0;
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate()) {
+      setShowValidationBanner(true);
+      return;
+    }
+    setShowValidationBanner(false);
     setStatus("loading");
     try {
       await submitRequest({
@@ -145,22 +202,18 @@ export function RequestClient() {
               <CheckCircle2 aria-hidden="true" className="size-5" />
             </div>
             <h1 className="mt-5 font-display text-2xl font-bold tracking-tight">
-              Request submitted for review
+              Request submitted
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
               Your{" "}
               {kind === "reseller" ? "reseller application" : "account request"}{" "}
-              for the {module.toUpperCase()} module is now in the operations
-              approval queue. A reviewer typically responds within two business
-              days at{" "}
+              for the {module.toUpperCase()} module has been sent to our
+              operations team, who will follow up by email at{" "}
               <span className="font-mono text-foreground">{values.email}</span>.
+              We&apos;ve also sent a copy to that address for your records.
             </p>
-            <dl className="mt-6 grid gap-4 sm:grid-cols-3">
+            <dl className="mt-6 grid gap-4 sm:grid-cols-2">
               {[
-                [
-                  "Reference",
-                  `REQ-${(Math.abs(hash(values.email ?? "")) % 9000) + 1000}`,
-                ],
                 [
                   "Type",
                   kind === "reseller"
@@ -178,7 +231,7 @@ export function RequestClient() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/"
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-module px-5 text-sm font-semibold text-background"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-module px-5 text-sm font-semibold text-ink"
               >
                 Return to sign in
               </Link>
@@ -201,9 +254,8 @@ export function RequestClient() {
               Request access to the network
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              No sign-in required. Tell us what you need and the operations team
-              will review it in the same queue used for every provisioning
-              decision.
+              No sign-in required. Tell us what you need and our operations team
+              will follow up by email.
             </p>
 
             <form onSubmit={onSubmit} className="mt-10 space-y-10" noValidate>
@@ -228,7 +280,7 @@ export function RequestClient() {
                       key={value}
                       name="kind"
                       checked={kind === value}
-                      onChange={() => setKind(value)}
+                      onChange={() => selectKind(value)}
                       title={title}
                       desc={desc}
                     />
@@ -252,16 +304,25 @@ export function RequestClient() {
                         "Data and voice profiles — currently limited availability.",
                       ],
                     ] as const
-                  ).map(([value, title, desc]) => (
-                    <Choice
-                      key={value}
-                      name="module"
-                      checked={module === value}
-                      onChange={() => setModule(value)}
-                      title={title}
-                      desc={desc}
-                    />
-                  ))}
+                  ).map(([value, title, desc]) => {
+                    const disabled = kind === "account" && value === "sip";
+                    return (
+                      <Choice
+                        key={value}
+                        name="module"
+                        checked={module === value}
+                        onChange={() => setModule(value)}
+                        title={title}
+                        desc={desc}
+                        disabled={disabled}
+                        disabledNote={
+                          disabled
+                            ? "SIP accounts are provisioned by resellers, not self-requested."
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </fieldset>
 
@@ -408,6 +469,16 @@ export function RequestClient() {
                 </Field>
               </fieldset>
 
+              {showValidationBanner && Object.keys(errors).length > 0 ? (
+                <div
+                  role="alert"
+                  className="rounded-xl bg-negative-muted px-4 py-4 text-sm text-negative-foreground"
+                >
+                  Some required fields need attention — check the highlighted
+                  fields above.
+                </div>
+              ) : null}
+
               {status === "error" ? (
                 <div
                   role="alert"
@@ -430,7 +501,7 @@ export function RequestClient() {
                 <button
                   type="submit"
                   disabled={status === "loading"}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-module px-6 text-sm font-semibold text-background transition-transform active:scale-[0.99] disabled:opacity-70"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-module px-6 text-sm font-semibold text-ink transition-transform active:scale-[0.99] disabled:opacity-70"
                 >
                   {status === "loading" ? (
                     <Loader2
@@ -443,7 +514,7 @@ export function RequestClient() {
                     : "Submit request for review"}
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  Submitting adds your request to the operations approval queue.
+                  Submitting emails your request to our operations team.
                 </p>
               </div>
             </form>
@@ -460,41 +531,43 @@ function Choice({
   onChange,
   title,
   desc,
+  disabled,
+  disabledNote,
 }: {
   name: string;
   checked: boolean;
   onChange: () => void;
   title: string;
   desc: string;
+  disabled?: boolean;
+  disabledNote?: string | undefined;
 }) {
   return (
     <label
       className={cn(
-        "cursor-pointer glass rounded-2xl p-4 ring-1 transition-colors",
-        checked ? "ring-2 ring-primary" : "ring-transparent hover:bg-accent/40",
+        "glass rounded-2xl p-4 ring-1 transition-colors",
+        disabled
+          ? "cursor-not-allowed opacity-60"
+          : "cursor-pointer ring-transparent hover:bg-accent/40",
+        !disabled && checked && "ring-2 ring-primary",
       )}
     >
       <span className="flex items-start gap-3">
         <input
           type="radio"
           name={name}
-          checked={checked}
+          checked={checked && !disabled}
+          disabled={disabled}
           onChange={onChange}
-          className="mt-0.5 size-4 shrink-0 accent-primary"
+          className="mt-0.5 size-4 shrink-0 accent-primary disabled:cursor-not-allowed"
         />
         <span>
           <span className="block text-sm font-semibold">{title}</span>
           <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-            {desc}
+            {disabled && disabledNote ? disabledNote : desc}
           </span>
         </span>
       </span>
     </label>
   );
-}
-
-function hash(s: string) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
-  return h;
 }

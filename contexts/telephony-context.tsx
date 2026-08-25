@@ -9,19 +9,20 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  MOCK_ACCOUNTS,
-  MOCK_REQUESTS,
-  MOCK_USERS,
-} from "@/lib/telephony/mock-data";
+import { MOCK_ACCOUNTS, MOCK_USERS } from "@/lib/telephony/mock-data";
 import type {
-  AccessRequest,
   AuditAction,
   AuditEvent,
   MockUser,
   ModuleKey,
+  Reseller,
   SipAccount,
 } from "@/lib/telephony/types";
+import { ApiError } from "@/lib/api/client";
+import { authApi, type BackendUser } from "@/lib/api/auth";
+import { accountsApi } from "@/lib/api/accounts";
+import { resellersApi } from "@/lib/api/resellers";
+import { requestsApi, type SubmitRequestInput } from "@/lib/api/requests";
 
 type Theme = "light" | "dark";
 
@@ -35,41 +36,63 @@ interface Ctx {
   theme: Theme;
   toggleTheme: () => void;
   accounts: SipAccount[];
+  accountsLoading: boolean;
   visibleAccounts: SipAccount[];
-  requests: AccessRequest[];
   auditEvents: AuditEvent[];
   createAccount: (input: {
     sipId: string;
-    displayName: string;
-    email: string;
+    password: string;
     expiresAt: string;
-    notes?: string | undefined;
   }) => Promise<SipAccount>;
   renewAccount: (id: string, expiresAt: string) => Promise<void>;
   setDisabled: (id: string, disabled: boolean) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
-  decideRequest: (
+  resellers: Reseller[];
+  resellersLoading: boolean;
+  createReseller: (input: {
+    username: string;
+    password: string;
+    expiresAt: string;
+  }) => Promise<Reseller>;
+  renewReseller: (id: string, expiresAt: string) => Promise<void>;
+  setResellerStatus: (
     id: string,
-    status: "approved" | "rejected",
-    reason?: string,
+    status: "active" | "disabled",
   ) => Promise<void>;
-  submitRequest: (
-    input: Omit<AccessRequest, "id" | "submittedAt" | "status">,
-  ) => Promise<void>;
+  resetResellerPassword: (id: string, newPassword: string) => Promise<void>;
+  submitRequest: (input: SubmitRequestInput) => Promise<void>;
   hasModule: (m: ModuleKey) => boolean;
 }
 
-const TelephonyContext = createContext<Ctx | null>(null);
+export const TelephonyContext = createContext<Ctx | null>(null);
 const SESSION_KEY = "flexi.session";
 const THEME_KEY = "flexi.theme";
 const wait = (ms = 620) => new Promise((r) => setTimeout(r, ms));
+
+// The real backend only knows admin/reseller — the enduser demo has no
+// backend counterpart, so it's the one role that stays mock-only end to end.
+function toAppUser(u: BackendUser): MockUser {
+  return {
+    id: String(u.id),
+    identifier: u.username,
+    password: "",
+    name: u.username,
+    org: undefined,
+    role: u.role,
+    modules: ["sip"],
+    accountId: undefined,
+    blurb: "",
+  };
+}
 
 export function TelephonyProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [user, setUser] = useState<MockUser | null>(null);
   const [theme, setTheme] = useState<Theme>("dark");
   const [accounts, setAccounts] = useState<SipAccount[]>(MOCK_ACCOUNTS);
-  const [requests, setRequests] = useState<AccessRequest[]>(MOCK_REQUESTS);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [resellers, setResellers] = useState<Reseller[]>([]);
+  const [resellersLoading, setResellersLoading] = useState(false);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
 
   const logEvent = useCallback(
@@ -100,9 +123,24 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
     // Dark-first product: only an explicit stored preference leaves dark.
     setTheme(storedTheme ?? "dark");
-    const id = localStorage.getItem(SESSION_KEY);
-    if (id) setUser(MOCK_USERS.find((u) => u.id === id) ?? null);
-    setHydrated(true);
+
+    (async () => {
+      const id = localStorage.getItem(SESSION_KEY);
+      const mockUser = id
+        ? (MOCK_USERS.find((u) => u.id === id && u.role === "enduser") ?? null)
+        : null;
+      if (mockUser) {
+        setUser(mockUser);
+      } else {
+        try {
+          const me = await authApi.me();
+          setUser(toAppUser(me));
+        } catch {
+          // No real session either — stay signed out.
+        }
+      }
+      setHydrated(true);
+    })();
   }, []);
 
   useEffect(() => {
@@ -111,22 +149,98 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     if (hydrated) localStorage.setItem(THEME_KEY, theme);
   }, [theme, hydrated]);
 
-  const signIn = useCallback(async (identifier: string, password: string) => {
-    await wait(900);
-    const found = MOCK_USERS.find(
-      (u) => u.identifier.toLowerCase() === identifier.trim().toLowerCase(),
-    );
-    if (!found || found.password !== password) {
-      throw new Error("INVALID_CREDENTIALS");
+  // Real accounts only exist for admin/reseller sessions — the enduser demo
+  // keeps reading straight from MOCK_ACCOUNTS via visibleAccounts below.
+  useEffect(() => {
+    if (!user || user.role === "enduser") return;
+    let cancelled = false;
+    setAccountsLoading(true);
+    accountsApi
+      .list()
+      .then((list) => {
+        if (!cancelled) setAccounts(list);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAccountsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // /api/admins is admin-only (resellers get a 403) — only fetch for admins.
+  useEffect(() => {
+    if (user?.role !== "admin") {
+      setResellers([]);
+      return;
     }
-    localStorage.setItem(SESSION_KEY, found.id);
-    setUser(found);
-    return found;
+    let cancelled = false;
+    setResellersLoading(true);
+    resellersApi
+      .list()
+      .then((list) => {
+        if (!cancelled) setResellers(list);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setResellersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const signIn = useCallback(async (identifier: string, password: string) => {
+    const mockMatch = MOCK_USERS.find(
+      (u) =>
+        u.role === "enduser" &&
+        u.identifier.toLowerCase() === identifier.trim().toLowerCase(),
+    );
+    if (mockMatch) {
+      await wait(900);
+      if (mockMatch.password !== password) {
+        throw new Error("INVALID_CREDENTIALS");
+      }
+      localStorage.setItem(SESSION_KEY, mockMatch.id);
+      setUser(mockMatch);
+      return mockMatch;
+    }
+
+    try {
+      const real = await authApi.login(identifier.trim(), password);
+      const appUser = toAppUser(real);
+      setUser(appUser);
+      return appUser;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        throw new Error("INVALID_CREDENTIALS");
+      }
+      if (err instanceof ApiError && err.status === 403) {
+        throw new Error("ACCOUNT_DISABLED");
+      }
+      throw new Error("GENERAL");
+    }
   }, []);
 
   const signOut = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
     setUser(null);
+    // AppShell mirrors the active workspace's accent onto <html> so
+    // portalled dialogs/menus can inherit it (see app-shell.tsx); that
+    // attribute otherwise survives sign-out (the element itself is never
+    // unmounted) and leaks whatever colour the user was last in — e.g. a
+    // green admin page turning cyan/orange — onto every page rendered
+    // afterwards that relies on the ambient module colour instead of
+    // setting its own.
+    delete document.documentElement.dataset["module"];
+    void authApi.logout().catch(() => {});
   }, []);
 
   const impersonate = useCallback((userId: string) => {
@@ -144,6 +258,11 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     return accounts.filter((a) => a.id === user.accountId);
   }, [accounts, user]);
 
+  const handleApiError = useCallback((err: unknown) => {
+    if (err instanceof ApiError && err.status === 401) setUser(null);
+    throw err;
+  }, []);
+
   const value: Ctx = {
     hydrated,
     user,
@@ -154,93 +273,123 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     theme,
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     accounts,
+    accountsLoading,
     visibleAccounts,
-    requests,
     auditEvents,
     hasModule: (m) =>
       !!user && (user.role === "admin" || user.modules.includes(m)),
     createAccount: async (input) => {
-      await wait();
-      const created: SipAccount = {
-        id: `acc-${Math.random().toString(36).slice(2, 8)}`,
-        sipId: input.sipId,
-        displayName: input.displayName,
-        email: input.email,
-        disabled: false,
-        expiresAt: new Date(input.expiresAt).toISOString(),
-        createdAt: new Date().toISOString(),
-        createdById: user?.id ?? "u-admin",
-        createdByName: user?.name ?? "Nora Varga",
-        notes: input.notes,
-      };
-      setAccounts((prev) => [created, ...prev]);
-      logEvent("sip", "account.created", created.sipId);
-      return created;
+      const [authid, domain] = input.sipId.split("@");
+      try {
+        const created = await accountsApi.create({
+          authid: authid ?? input.sipId,
+          domain: domain ?? "",
+          password: input.password,
+          expires_at: new Date(input.expiresAt).toISOString(),
+        });
+        setAccounts((prev) => [created, ...prev]);
+        logEvent("sip", "account.created", created.sipId);
+        return created;
+      } catch (err) {
+        return handleApiError(err);
+      }
     },
     renewAccount: async (id, expiresAt) => {
-      await wait();
-      setAccounts((prev) =>
-        prev.map((a) =>
-          a.id === id
-            ? { ...a, expiresAt: new Date(expiresAt).toISOString() }
-            : a,
-        ),
-      );
-      const target = accounts.find((a) => a.id === id);
-      logEvent(
-        "sip",
-        "account.renewed",
-        target?.sipId ?? id,
-        `New expiry ${new Date(expiresAt).toLocaleDateString("en-GB")}`,
-      );
+      try {
+        const updated = await accountsApi.renew(
+          id,
+          new Date(expiresAt).toISOString(),
+        );
+        setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
+        logEvent(
+          "sip",
+          "account.renewed",
+          updated.sipId,
+          `New expiry ${new Date(expiresAt).toLocaleDateString("en-GB")}`,
+        );
+      } catch (err) {
+        handleApiError(err);
+      }
     },
     setDisabled: async (id, disabled) => {
-      await wait(480);
-      setAccounts((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, disabled } : a)),
-      );
-      const target = accounts.find((a) => a.id === id);
-      logEvent(
-        "sip",
-        disabled ? "account.disabled" : "account.enabled",
-        target?.sipId ?? id,
-      );
+      try {
+        const updated = disabled
+          ? await accountsApi.disable(id)
+          : await accountsApi.renew(
+              id,
+              accounts.find((a) => a.id === id)?.expiresAt ??
+                new Date().toISOString(),
+            );
+        setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
+        logEvent(
+          "sip",
+          disabled ? "account.disabled" : "account.enabled",
+          updated.sipId,
+        );
+      } catch (err) {
+        handleApiError(err);
+      }
     },
     deleteAccount: async (id) => {
-      await wait(760);
-      const target = accounts.find((a) => a.id === id);
-      setAccounts((prev) => prev.filter((a) => a.id !== id));
-      logEvent("sip", "account.deleted", target?.sipId ?? id);
+      try {
+        await accountsApi.remove(id);
+        const target = accounts.find((a) => a.id === id);
+        setAccounts((prev) => prev.filter((a) => a.id !== id));
+        logEvent("sip", "account.deleted", target?.sipId ?? id);
+      } catch (err) {
+        handleApiError(err);
+      }
     },
-    decideRequest: async (id, status, reason) => {
-      await wait(560);
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, status, decisionReason: reason } : r,
-        ),
-      );
-      const target = requests.find((r) => r.id === id);
-      if (target) {
+    resellers,
+    resellersLoading,
+    createReseller: async (input) => {
+      try {
+        const created = await resellersApi.create(input);
+        setResellers((prev) => [created, ...prev]);
+        logEvent("sip", "reseller.created", created.username);
+        return created;
+      } catch (err) {
+        return handleApiError(err);
+      }
+    },
+    renewReseller: async (id, expiresAt) => {
+      try {
+        const updated = await resellersApi.renew(id, expiresAt);
+        setResellers((prev) => prev.map((r) => (r.id === id ? updated : r)));
         logEvent(
-          target.module,
-          status === "approved" ? "request.approved" : "request.rejected",
-          target.name,
-          reason,
+          "sip",
+          "reseller.renewed",
+          updated.username,
+          `New expiry ${new Date(expiresAt).toLocaleDateString("en-GB")}`,
         );
+      } catch (err) {
+        handleApiError(err);
+      }
+    },
+    setResellerStatus: async (id, status) => {
+      try {
+        const updated = await resellersApi.setStatus(id, status);
+        setResellers((prev) => prev.map((r) => (r.id === id ? updated : r)));
+        logEvent(
+          "sip",
+          status === "disabled" ? "reseller.disabled" : "reseller.enabled",
+          updated.username,
+        );
+      } catch (err) {
+        handleApiError(err);
+      }
+    },
+    resetResellerPassword: async (id, newPassword) => {
+      try {
+        await resellersApi.resetPassword(id, newPassword);
+        const target = resellers.find((r) => r.id === id);
+        logEvent("sip", "reseller.password_reset", target?.username ?? id);
+      } catch (err) {
+        handleApiError(err);
       }
     },
     submitRequest: async (input) => {
-      await wait(1100);
-      if (input.email.endsWith("@fail.test")) throw new Error("SUBMIT_FAILED");
-      setRequests((prev) => [
-        {
-          ...input,
-          id: `req-${Math.random().toString(36).slice(2, 7)}`,
-          submittedAt: new Date().toISOString(),
-          status: "pending",
-        },
-        ...prev,
-      ]);
+      await requestsApi.submit(input);
     },
   };
 

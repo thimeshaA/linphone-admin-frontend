@@ -3,8 +3,7 @@ import { OverviewClient } from "./overview-client";
 
 export const metadata: Metadata = {
   title: "Overview — Admin Control",
-  description:
-    "Platform overview: module access, account health and pending approvals.",
+  description: "Platform overview: module access and account health.",
   openGraph: {
     title: "Overview — Admin Control",
     description: "SIP and eSIM operations modules in one console.",
