@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Platform overview: module access and account health.",
   openGraph: {
     title: "Overview — Admin Control",
-    description: "SIP and eSIM operations modules in one console.",
+    description: "SIP operations module in one console.",
   },
 };
 

@@ -6,7 +6,7 @@ import { MetaTag } from "./status-pill";
 import { useTelephony } from "@/contexts/telephony-context";
 import type { AuditAction, ModuleKey } from "@/lib/telephony/types";
 
-const MODULE_LABEL: Record<ModuleKey, string> = { sip: "SIP", esim: "eSIM" };
+const MODULE_LABEL: Record<ModuleKey, string> = { sip: "SIP" };
 
 const ACTION_LABEL: Record<AuditAction, string> = {
   "account.created": "Account created",
@@ -14,6 +14,7 @@ const ACTION_LABEL: Record<AuditAction, string> = {
   "account.disabled": "Account disabled",
   "account.enabled": "Account re-enabled",
   "account.deleted": "Account deleted",
+  "account.reassigned": "Account reassigned",
   "reseller.created": "Reseller created",
   "reseller.renewed": "Reseller renewed",
   "reseller.password_reset": "Reseller password reset",

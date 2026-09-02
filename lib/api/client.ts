@@ -24,11 +24,54 @@ export async function apiFetch<T = unknown>(
   });
   const body: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message =
-      typeof body === "object" && body && "error" in body
-        ? String((body as { error: unknown }).error)
-        : `Request failed (${res.status})`;
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, extractErrorMessage(body, res.status));
   }
   return body as T;
+}
+
+// For endpoints that return a file (e.g. generated report PDFs) rather than
+// JSON. A failed request still comes back as JSON, so errors are decoded the
+// same way as apiFetch; only the success path differs.
+export async function apiFetchBlob(
+  path: string,
+  init: RequestInit = {},
+): Promise<{ blob: Blob; filename: string | null }> {
+  const res = await fetch(`/api${path}`, { ...init, credentials: "include" });
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, extractErrorMessage(body, res.status));
+  }
+  return {
+    blob: await res.blob(),
+    filename: filenameFromContentDisposition(
+      res.headers.get("Content-Disposition"),
+    ),
+  };
+}
+
+function filenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+// The backend reports validation failures in three different shapes across
+// endpoints: a single `error` string, an `errors` object keyed by field
+// (account/reseller creation), or an `errors` array of messages (batch
+// account requests). Handle all three so the real reason reaches the UI
+// instead of a generic "Request failed (400)".
+function extractErrorMessage(body: unknown, status: number): string {
+  if (typeof body === "object" && body !== null) {
+    const record = body as Record<string, unknown>;
+    if (typeof record["error"] === "string") return record["error"];
+    if (Array.isArray(record["errors"])) {
+      return record["errors"].map(String).join(" ");
+    }
+    if (typeof record["errors"] === "object" && record["errors"] !== null) {
+      return Object.values(record["errors"] as Record<string, unknown>)
+        .map(String)
+        .join(" ");
+    }
+  }
+  return `Request failed (${status})`;
 }

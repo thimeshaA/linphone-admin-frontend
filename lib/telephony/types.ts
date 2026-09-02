@@ -1,4 +1,4 @@
-export type ModuleKey = "sip" | "esim";
+export type ModuleKey = "sip";
 export type Role = "admin" | "reseller" | "enduser";
 
 export interface MockUser {
@@ -20,6 +20,7 @@ export type ResellerStatus = "active" | "disabled" | "expired";
 export interface Reseller {
   id: string;
   username: string;
+  email: string;
   status: ResellerStatus;
   expiresAt: string | null;
   expiredAt: string | null;
@@ -41,7 +42,7 @@ export interface SipAccount {
   notes?: string | undefined;
 }
 
-export type RequestKind = "reseller" | "account";
+export type RequestKind = "reseller";
 
 export type AuditAction =
   | "account.created"
@@ -49,6 +50,7 @@ export type AuditAction =
   | "account.disabled"
   | "account.enabled"
   | "account.deleted"
+  | "account.reassigned"
   | "reseller.created"
   | "reseller.renewed"
   | "reseller.password_reset"

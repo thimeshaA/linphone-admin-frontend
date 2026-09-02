@@ -460,7 +460,9 @@ export function LensTabBar({
     };
   }, []);
 
-  const gridStyle = { gridTemplateColumns: `repeat(${tabs.length}, 1fr)` };
+  const gridStyle = {
+    gridTemplateColumns: `repeat(${tabs.length}, minmax(44px, 1fr))`,
+  };
   const capsuleLeft = centers[restingIndex] ?? 0;
   const activeTab = tabs[restingIndex];
 
@@ -476,7 +478,11 @@ export function LensTabBar({
       <div className="lens-tabbar-glass">
         {/* Pure background shape, no content of its own — the real icon/
             label live once, in the row below, which paints on top of this
-            (DOM order, not z-index) so nothing is ever duplicated. */}
+            (DOM order, not z-index) so nothing is ever duplicated. Kept as
+            a sibling (not a parent) of the row: the row must be an in-flow
+            child of the root for the root's fit-content width to size
+            around it — nesting it inside this absolutely-positioned glass
+            layer would take it out of flow and collapse the root to 0. */}
         <div
           className="lens-tabbar-capsule"
           aria-hidden="true"
@@ -485,38 +491,38 @@ export function LensTabBar({
           data-module={activeTab?.accent}
           style={{ left: capsuleLeft }}
         />
+      </div>
 
-        <div className="lens-tabbar-row" style={gridStyle}>
-          <ul role="tablist" aria-label="Primary" className="contents">
-            {tabs.map((tab, i) => {
-              const Icon = tab.icon;
-              const isRestingActive = restingIndex === i && !dragging;
-              return (
-                <li key={tab.id} role="presentation" className="contents">
-                  <button
-                    ref={(el) => {
-                      tabButtonRefs.current[i] = el;
-                    }}
-                    type="button"
-                    role="tab"
-                    aria-selected={restingIndex === i}
-                    aria-label={tab.label}
-                    tabIndex={restingIndex === i ? 0 : -1}
-                    data-module={tab.accent}
-                    data-neutral={tab.accent ? undefined : "true"}
-                    data-active-rest={isRestingActive ? "true" : undefined}
-                    className="lens-tab"
-                    onFocus={() => onTabFocus(i)}
-                    onKeyDown={(e) => onKeyDown(e, i)}
-                    onClick={() => onTabClick(i)}
-                  >
-                    <Icon aria-hidden="true" className="size-6 shrink-0" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+      <div className="lens-tabbar-row" style={gridStyle}>
+        <ul role="tablist" aria-label="Primary" className="contents">
+          {tabs.map((tab, i) => {
+            const Icon = tab.icon;
+            const isRestingActive = restingIndex === i && !dragging;
+            return (
+              <li key={tab.id} role="presentation" className="contents">
+                <button
+                  ref={(el) => {
+                    tabButtonRefs.current[i] = el;
+                  }}
+                  type="button"
+                  role="tab"
+                  aria-selected={restingIndex === i}
+                  aria-label={tab.label}
+                  tabIndex={restingIndex === i ? 0 : -1}
+                  data-module={tab.accent}
+                  data-neutral={tab.accent ? undefined : "true"}
+                  data-active-rest={isRestingActive ? "true" : undefined}
+                  className="lens-tab"
+                  onFocus={() => onTabFocus(i)}
+                  onKeyDown={(e) => onKeyDown(e, i)}
+                  onClick={() => onTabClick(i)}
+                >
+                  <Icon aria-hidden="true" className="size-6 shrink-0" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       <div

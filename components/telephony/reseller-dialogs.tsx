@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { useTelephony } from "@/contexts/telephony-context";
 import { formatDate, toDateInput } from "@/lib/telephony/status";
+import { addPeriods } from "@/lib/telephony/period";
 import type { Reseller } from "@/lib/telephony/types";
+import { PeriodPicker } from "./period-picker";
 
 const inputClass =
   "h-11 w-full rounded-xl bg-background px-4 text-sm outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring";
@@ -45,20 +47,18 @@ export function CreateResellerDialog({
 }) {
   const { createReseller } = useTelephony();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [expiresAt, setExpiresAt] = useState(
-    toDateInput(new Date(Date.now() + 365 * 86_400_000).toISOString()),
-  );
+  const [periods, setPeriods] = useState(1); // 1 x 6 months = the base period
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [serverError, setServerError] = useState("");
 
   function reset() {
     setUsername("");
+    setEmail("");
     setPassword("");
-    setExpiresAt(
-      toDateInput(new Date(Date.now() + 365 * 86_400_000).toISOString()),
-    );
+    setPeriods(1);
     setErrors({});
     setState("idle");
     setServerError("");
@@ -67,18 +67,24 @@ export function CreateResellerDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const next: Record<string, string> = {};
-    if (!username.trim()) next["username"] = "Username is required.";
+    if (!/^[\w.-]{1,64}$/.test(username))
+      next["username"] =
+        "Use letters, numbers, dots, underscores or hyphens only — no spaces.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      next["email"] = "Enter a valid email address.";
     if (!password.trim())
       next["password"] = "A password is required for the reseller login.";
-    if (new Date(expiresAt).getTime() <= Date.now())
-      next["expiresAt"] = "Expiry must be in the future.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
     setState("loading");
     try {
+      const expiresAt = toDateInput(
+        addPeriods(new Date(), periods).toISOString(),
+      );
       const created = await createReseller({
         username: username.trim(),
+        email: email.trim(),
         password,
         expiresAt,
       });
@@ -108,8 +114,9 @@ export function CreateResellerDialog({
             Add a reseller
           </DialogTitle>
           <DialogDescription>
-            The reseller gets an active login immediately with the username and
-            password you set below.
+            The reseller gets an active login immediately with the username,
+            email and password you set below. Subscriptions run in fixed 6-month
+            periods.
           </DialogDescription>
         </DialogHeader>
 
@@ -120,13 +127,31 @@ export function CreateResellerDialog({
               id="rc-username"
               className={inputClass}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="d.moreau@lineabridge.fr"
+              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+              placeholder="d.moreau"
               aria-invalid={!!errors["username"]}
             />
             {errors["username"] ? (
               <p role="alert" className="text-xs text-negative-foreground">
                 {errors["username"]}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rc-email">Email</Label>
+            <input
+              id="rc-email"
+              type="email"
+              className={inputClass}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="d.moreau@lineabridge.fr"
+              aria-invalid={!!errors["email"]}
+            />
+            {errors["email"] ? (
+              <p role="alert" className="text-xs text-negative-foreground">
+                {errors["email"]}
               </p>
             ) : null}
           </div>
@@ -149,23 +174,13 @@ export function CreateResellerDialog({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rc-exp">Expiry date</Label>
-            <input
-              id="rc-exp"
-              type="date"
-              className={inputClass}
-              value={expiresAt}
-              min={toDateInput(new Date(Date.now() + 86_400_000).toISOString())}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              aria-invalid={!!errors["expiresAt"]}
-            />
-            {errors["expiresAt"] ? (
-              <p role="alert" className="text-xs text-negative-foreground">
-                {errors["expiresAt"]}
-              </p>
-            ) : null}
-          </div>
+          <PeriodPicker
+            id="rc-exp"
+            label="Subscription length"
+            baseDate={new Date()}
+            periods={periods}
+            onChange={setPeriods}
+          />
 
           {state === "error" ? (
             <p
@@ -212,21 +227,18 @@ export function RenewResellerDialog({
   onClose: () => void;
 }) {
   const { renewReseller } = useTelephony();
-  const [date, setDate] = useState("");
+  const [periods, setPeriods] = useState(1); // 1 x 6 months = the base period
   const [loading, setLoading] = useState(false);
-  const current = reseller?.expiresAt ?? new Date().toISOString();
-  const value =
-    date ||
-    toDateInput(
-      new Date(new Date(current).getTime() + 365 * 86_400_000).toISOString(),
-    );
+  const base = new Date(reseller?.expiresAt ?? new Date().toISOString());
+  const newExpiry = addPeriods(base, periods);
+  const value = toDateInput(newExpiry.toISOString());
 
   return (
     <Dialog
       open={!!reseller}
       onOpenChange={(v) => {
         if (!v) {
-          setDate("");
+          setPeriods(1);
           onClose();
         }
       }}
@@ -237,8 +249,8 @@ export function RenewResellerDialog({
             Renew reseller
           </DialogTitle>
           <DialogDescription>
-            Choose any expiry date. Renewing an expired or disabled reseller
-            restores it to active immediately.
+            Renews in fixed 6-month periods. Renewing an expired or disabled
+            reseller restores it to active immediately.
           </DialogDescription>
         </DialogHeader>
 
@@ -257,22 +269,18 @@ export function RenewResellerDialog({
           <div>
             <p className="label-meta">New expiry</p>
             <p className="mt-1.5 text-sm font-semibold text-module-strong">
-              {formatDate(new Date(value).toISOString())}
+              {formatDate(newExpiry.toISOString())}
             </p>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="rr-date">New expiry date</Label>
-          <input
-            id="rr-date"
-            type="date"
-            className={inputClass}
-            value={value}
-            min={toDateInput(new Date(Date.now() + 86_400_000).toISOString())}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
+        <PeriodPicker
+          id="rr-date"
+          label="Extend by"
+          baseDate={base}
+          periods={periods}
+          onChange={setPeriods}
+        />
 
         <DialogFooter className="gap-2 sm:gap-2">
           <button type="button" className={ghostBtn} onClick={onClose}>
@@ -288,9 +296,9 @@ export function RenewResellerDialog({
               try {
                 await renewReseller(reseller.id, value);
                 toast.success(`${reseller.username} renewed`, {
-                  description: `Now valid until ${formatDate(new Date(value).toISOString())}.`,
+                  description: `Now valid until ${formatDate(newExpiry.toISOString())}.`,
                 });
-                setDate("");
+                setPeriods(1);
                 onClose();
               } catch {
                 toast.error("Renewal failed", {

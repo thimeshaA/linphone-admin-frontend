@@ -4,10 +4,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTelephony } from "@/contexts/telephony-context";
 import { PRIMARY_AREAS } from "@/lib/telephony/nav-config";
+import { cn } from "@/lib/utils";
 import { activeAreaId, PrimaryRail } from "./primary-rail";
 import { MobileBottomNav } from "./mobile-bottom-nav";
+import { MobileSecondaryNav } from "./mobile-secondary-nav";
 import { SecondaryColumn } from "./secondary-column";
 import { ThemeToggle } from "./theme-toggle";
+import { Logo } from "./logo";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, hydrated } = useTelephony();
@@ -74,7 +77,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile top bar */}
       <div className="glass sticky top-0 z-40 flex items-center justify-between border-x-0 border-t-0 px-4 py-4 md:hidden">
-        <Brand />
+        <div className="flex min-w-0 items-center gap-2">
+          <MobileSecondaryNav areaId={areaId} />
+          <Brand compact />
+        </div>
         <ThemeToggle />
       </div>
 
@@ -93,15 +99,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 export function Brand({ compact }: { compact?: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <span
-        aria-hidden="true"
-        className="module-bg grid size-9 shrink-0 place-items-center rounded-[12px] font-display text-sm font-bold"
-      >
-        AC
-      </span>
+      <Logo className={cn(compact ? "h-7" : "h-9", "w-auto shrink-0")} />
       <span className="min-w-0">
-        <span className="block truncate font-display text-sm font-bold tracking-tight">
-          Admin Control
+        <span className="block truncate font-display text-sm tracking-tight">
+          <span className="font-bold">Admin</span>{" "}
+          <span className="font-normal">Control</span>
         </span>
         {!compact ? (
           <span className="label-meta block mt-0.5">Operations</span>

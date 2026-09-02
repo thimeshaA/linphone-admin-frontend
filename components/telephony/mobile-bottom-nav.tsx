@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { activeAreaId, visibleAreas } from "./primary-rail";
 import { LensTabBar, type LensTab } from "./lens-tab-bar";
 
-const PRIMARY_IDS = ["overview", "sip", "esim"];
+const PRIMARY_IDS = ["overview", "sip"];
 
 export function MobileBottomNav() {
   const { user, signOut } = useTelephony();

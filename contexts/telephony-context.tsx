@@ -23,6 +23,10 @@ import { authApi, type BackendUser } from "@/lib/api/auth";
 import { accountsApi } from "@/lib/api/accounts";
 import { resellersApi } from "@/lib/api/resellers";
 import { requestsApi, type SubmitRequestInput } from "@/lib/api/requests";
+import {
+  accountRequestsApi,
+  type AccountRequestEntry,
+} from "@/lib/api/account-requests";
 
 type Theme = "light" | "dark";
 
@@ -41,16 +45,20 @@ interface Ctx {
   auditEvents: AuditEvent[];
   createAccount: (input: {
     sipId: string;
+    email: string;
     password: string;
     expiresAt: string;
+    creatorId: string;
   }) => Promise<SipAccount>;
   renewAccount: (id: string, expiresAt: string) => Promise<void>;
   setDisabled: (id: string, disabled: boolean) => Promise<void>;
+  reassignAccount: (id: string, creatorId: string) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
   resellers: Reseller[];
   resellersLoading: boolean;
   createReseller: (input: {
     username: string;
+    email: string;
     password: string;
     expiresAt: string;
   }) => Promise<Reseller>;
@@ -61,6 +69,7 @@ interface Ctx {
   ) => Promise<void>;
   resetResellerPassword: (id: string, newPassword: string) => Promise<void>;
   submitRequest: (input: SubmitRequestInput) => Promise<void>;
+  submitAccountRequests: (entries: AccountRequestEntry[]) => Promise<void>;
   hasModule: (m: ModuleKey) => boolean;
 }
 
@@ -284,8 +293,10 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
         const created = await accountsApi.create({
           authid: authid ?? input.sipId,
           domain: domain ?? "",
+          email: input.email,
           password: input.password,
           expires_at: new Date(input.expiresAt).toISOString(),
+          resellerId: input.creatorId,
         });
         setAccounts((prev) => [created, ...prev]);
         logEvent("sip", "account.created", created.sipId);
@@ -326,6 +337,15 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
           disabled ? "account.disabled" : "account.enabled",
           updated.sipId,
         );
+      } catch (err) {
+        handleApiError(err);
+      }
+    },
+    reassignAccount: async (id, creatorId) => {
+      try {
+        const updated = await accountsApi.reassign(id, creatorId);
+        setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
+        logEvent("sip", "account.reassigned", updated.sipId);
       } catch (err) {
         handleApiError(err);
       }
@@ -390,6 +410,9 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     },
     submitRequest: async (input) => {
       await requestsApi.submit(input);
+    },
+    submitAccountRequests: async (entries) => {
+      await accountRequestsApi.submitBatch(entries);
     },
   };
 

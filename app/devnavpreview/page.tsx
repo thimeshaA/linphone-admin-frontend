@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  LayoutDashboard,
-  MoreHorizontal,
-  PhoneCall,
-  Signal,
-} from "lucide-react";
+import { LayoutDashboard, MoreHorizontal, PhoneCall } from "lucide-react";
 import { LensTabBar, type LensTab } from "@/components/telephony/lens-tab-bar";
 import { ThemeToggle } from "@/components/telephony/theme-toggle";
 import { useTelephony } from "@/contexts/telephony-context";
@@ -23,7 +18,6 @@ const DEMO_TABS: LensTab[] = [
     accent: "success",
   },
   { id: "sip", label: "SIP", icon: PhoneCall, accent: "sip" },
-  { id: "esim", label: "eSIM", icon: Signal, accent: "esim" },
   { id: "more", label: "More", icon: MoreHorizontal },
 ];
 

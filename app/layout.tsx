@@ -1,20 +1,29 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "@fontsource/space-grotesk/500.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/500.css";
+import "@fontsource/dm-sans/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 import "../styles/globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Admin Control — SIP & eSIM operations",
+  title: "Admin Control — SIP operations",
   description:
     "Operations console for provisioning, renewing and auditing SIP identities on Flexisip infrastructure.",
+  // app/favicon.ico is picked up automatically via Next's file convention —
+  // this only adds the larger PNG variant on top, for Apple touch icons/etc.
   icons: {
-    icon: "/favicon.ico",
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    apple: "/icon.png",
   },
   openGraph: {
     title: "Admin Control",
-    description:
-      "Telephony operations command center for SIP and eSIM accounts.",
+    description: "SIP account administration console.",
     type: "website",
   },
   twitter: {
@@ -25,19 +34,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font -- this is the root layout, so it already applies to every page */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap"
-        />
-      </head>
       <body>
         <Providers>
           {children}

@@ -55,36 +55,70 @@ function SipSubscriptionsPage() {
         <ul className="space-y-2.5">
           {rows.map((a) => {
             const days = daysUntil(a.expiresAt);
+            const daysLabel =
+              days < 0
+                ? `${Math.abs(days)}d overdue`
+                : `${days}d remaining`;
+            const status = accountStatus(a);
             return (
               <li
                 key={a.id}
-                className="glass flex flex-wrap items-center justify-between gap-4 rounded-[16px] px-5 py-4"
+                className="glass rounded-[16px] px-4 py-3.5 md:px-5 md:py-4"
               >
-                <div className="min-w-0">
-                  <p className="font-medium">{a.displayName}</p>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {a.sipId}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-sm tabular-nums">
-                      {formatDate(a.expiresAt)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {days < 0
-                        ? `${Math.abs(days)}d overdue`
-                        : `${days}d remaining`}
+                {/* Desktop: single row */}
+                <div className="hidden md:flex md:flex-wrap md:items-center md:justify-between md:gap-4">
+                  <div className="min-w-0">
+                    <p className="font-medium">{a.displayName}</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {a.sipId}
                     </p>
                   </div>
-                  <StatusPill status={accountStatus(a)} />
-                  <button
-                    type="button"
-                    onClick={() => setRenewing(a)}
-                    className="module-bg h-10 shrink-0 rounded-xl px-4 text-sm font-semibold"
-                  >
-                    Renew
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm tabular-nums">
+                        {formatDate(a.expiresAt)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {daysLabel}
+                      </p>
+                    </div>
+                    <StatusPill status={status} />
+                    <button
+                      type="button"
+                      onClick={() => setRenewing(a)}
+                      className="module-bg h-10 shrink-0 rounded-xl px-4 text-sm font-semibold"
+                    >
+                      Renew
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile: stacked */}
+                <div className="md:hidden">
+                  <p className="truncate font-medium">{a.displayName}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">
+                    {a.sipId}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <div>
+                        <p className="text-sm tabular-nums">
+                          {formatDate(a.expiresAt)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {daysLabel}
+                        </p>
+                      </div>
+                      <StatusPill status={status} className="shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRenewing(a)}
+                      className="module-bg h-10 shrink-0 rounded-xl px-4 text-sm font-semibold"
+                    >
+                      Renew
+                    </button>
+                  </div>
                 </div>
               </li>
             );

@@ -5,6 +5,7 @@ interface BackendAccount {
   id: string | number;
   authid: string;
   domain: string;
+  email?: string;
   created_at: string;
   status: string;
   expires_at: string;
@@ -19,7 +20,7 @@ function mapAccount(a: BackendAccount): SipAccount {
     id: String(a.id),
     sipId: `${a.authid}@${a.domain}`,
     displayName: a.authid,
-    email: "",
+    email: a.email ?? "",
     disabled: a.status === "disabled",
     expiresAt: a.expires_at,
     createdAt: a.created_at,
@@ -36,8 +37,10 @@ export const accountsApi = {
   create: (input: {
     authid: string;
     domain: string;
+    email: string;
     password: string;
     expires_at: string;
+    resellerId: string;
   }) =>
     apiFetch<BackendAccount>("/accounts", {
       method: "POST",
@@ -54,6 +57,12 @@ export const accountsApi = {
   disable: (id: string) =>
     apiFetch<BackendAccount>(`/accounts/${id}/disable`, {
       method: "PATCH",
+    }).then(mapAccount),
+  // Admin-only.
+  reassign: (id: string, resellerId: string) =>
+    apiFetch<BackendAccount>(`/accounts/${id}/reassign`, {
+      method: "PATCH",
+      body: JSON.stringify({ resellerId }),
     }).then(mapAccount),
   remove: (id: string) =>
     apiFetch<{ message: string }>(`/accounts/${id}`, { method: "DELETE" }),

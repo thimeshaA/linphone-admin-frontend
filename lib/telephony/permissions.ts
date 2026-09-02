@@ -11,11 +11,9 @@ export function permissionsFor(user: MockUser | null): Set<string> {
   if (user.role === "admin") {
     return new Set([
       "platform.overview",
-      "platform.reports",
       "platform.notifications",
       "platform.settings",
       "sip.*",
-      "esim.*",
     ]);
   }
   const perms = new Set<string>(["platform.overview", "platform.settings"]);

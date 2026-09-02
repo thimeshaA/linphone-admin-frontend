@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 
 /** Role-filters leaf links, then drops any section header left with no
  * visible children under it — e.g. "Reseller Management" for a reseller,
- * once every link beneath it is admin-only. */
-function visibleSecondaryItems(
+ * once every link beneath it is admin-only. Shared with the mobile secondary
+ * drawer so both surfaces stay in sync off the same nav-config source. */
+export function visibleSecondaryItems(
   items: SecondaryItem[],
   isAdmin: boolean,
 ): SecondaryItem[] {

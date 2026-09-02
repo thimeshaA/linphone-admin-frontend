@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Lock, PhoneCall, Signal } from "lucide-react";
+import { ArrowUpRight, Lock, PhoneCall } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
 import { PageHeader } from "@/components/telephony/primitives";
 import { MetaTag, ModuleTag } from "@/components/telephony/status-pill";
@@ -42,7 +42,7 @@ function OverviewPage() {
         <h2 id="modules" className="label-meta">
           Modules
         </h2>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4">
           {hasModule("sip") ? (
             <ModuleCard
               module="sip"
@@ -66,30 +66,7 @@ function OverviewPage() {
               module="sip"
               icon={<PhoneCall aria-hidden="true" className="size-5" />}
               title="SIP Account Panel"
-              reason="Your organisation is approved for eSIM only. SIP provisioning requires a separate reseller agreement covering voice traffic and emergency-call obligations."
-            />
-          )}
-
-          {hasModule("esim") ? (
-            <ModuleCard
-              module="esim"
-              to="/esim/dashboard"
-              icon={<Signal aria-hidden="true" className="size-5" />}
-              title="eSIM Panel"
-              description="Profile inventory, activation and data plan management for embedded SIM."
-              stat={0}
-              statLabel="Profiles provisioned"
-              tags={[
-                <ModuleTag key="mod" module="esim" />,
-                <MetaTag key="soon">Rollout in progress</MetaTag>,
-              ]}
-            />
-          ) : (
-            <LockedCard
-              module="esim"
-              icon={<Signal aria-hidden="true" className="size-5" />}
-              title="eSIM Panel"
-              reason="eSIM management is running, but access is granted per-organisation after a compliance and KYC review. Submit a request and operations will enable the module on your account."
+              reason="SIP provisioning requires a reseller agreement covering voice traffic and emergency-call obligations."
             />
           )}
         </div>

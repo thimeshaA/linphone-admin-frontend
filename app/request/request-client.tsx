@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { useTelephony } from "@/contexts/telephony-context";
 import { Brand } from "@/components/telephony/app-shell";
 import { ThemeToggle } from "@/components/telephony/theme-toggle";
-import type { ModuleKey, RequestKind } from "@/lib/telephony/types";
-import { cn } from "@/lib/utils";
 
 type FieldName =
   | "name"
@@ -76,31 +73,16 @@ export function RequestClient() {
 
 function RequestForm() {
   const { submitRequest } = useTelephony();
-  const searchParams = useSearchParams();
-  const [kind, setKind] = useState<RequestKind>(() =>
-    searchParams.get("type") === "account" ? "account" : "reseller",
-  );
-  const [module, setModule] = useState<ModuleKey>(() => {
-    const requested = searchParams.get("module");
-    // "account" + "sip" is never a valid combination — see selectKind below.
-    if (requested === "sip" && searchParams.get("type") === "account")
-      return "esim";
-    return requested === "esim" ? "esim" : "sip";
-  });
+  // eSIM is removed — the only public request left is a reseller
+  // application for the SIP module, so these are no longer user choices.
+  const kind = "reseller" as const;
+  const module = "sip" as const;
   const [values, setValues] = useState<FormValues>({});
   const [errors, setErrors] = useState<Errors>({});
   const [showValidationBanner, setShowValidationBanner] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
     "idle",
   );
-
-  // "Request an account" only ever applies to eSIM here — SIP accounts come
-  // from a reseller, not self-service — so switching to it while SIP is
-  // selected must not leave an invalid combination on screen.
-  function selectKind(next: RequestKind) {
-    setKind(next);
-    if (next === "account" && module === "sip") setModule("esim");
-  }
 
   const set =
     (k: FieldName) =>
@@ -259,76 +241,9 @@ function RequestForm() {
             </p>
 
             <form onSubmit={onSubmit} className="mt-10 space-y-10" noValidate>
-              <fieldset>
-                <legend className="label-meta">01 — Request type</legend>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {(
-                    [
-                      [
-                        "reseller",
-                        "Become a reseller",
-                        "Provision and manage accounts for your own customers.",
-                      ],
-                      [
-                        "account",
-                        "Request an account",
-                        "A single line or data profile for yourself or your organisation.",
-                      ],
-                    ] as const
-                  ).map(([value, title, desc]) => (
-                    <Choice
-                      key={value}
-                      name="kind"
-                      checked={kind === value}
-                      onChange={() => selectKind(value)}
-                      title={title}
-                      desc={desc}
-                    />
-                  ))}
-                </div>
-              </fieldset>
-
-              <fieldset>
-                <legend className="label-meta">02 — Module</legend>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {(
-                    [
-                      [
-                        "sip",
-                        "SIP",
-                        "Voice accounts on the Flexisip infrastructure.",
-                      ],
-                      [
-                        "esim",
-                        "eSIM",
-                        "Data and voice profiles — currently limited availability.",
-                      ],
-                    ] as const
-                  ).map(([value, title, desc]) => {
-                    const disabled = kind === "account" && value === "sip";
-                    return (
-                      <Choice
-                        key={value}
-                        name="module"
-                        checked={module === value}
-                        onChange={() => setModule(value)}
-                        title={title}
-                        desc={desc}
-                        disabled={disabled}
-                        disabledNote={
-                          disabled
-                            ? "SIP accounts are provisioned by resellers, not self-requested."
-                            : undefined
-                        }
-                      />
-                    );
-                  })}
-                </div>
-              </fieldset>
-
               <fieldset className="space-y-5">
                 <legend className="label-meta">
-                  03 —{" "}
+                  01 —{" "}
                   {kind === "reseller" ? "Business details" : "Contact details"}
                 </legend>
                 <div className="grid gap-5 sm:grid-cols-2">
@@ -522,52 +437,5 @@ function RequestForm() {
         )}
       </main>
     </div>
-  );
-}
-
-function Choice({
-  name,
-  checked,
-  onChange,
-  title,
-  desc,
-  disabled,
-  disabledNote,
-}: {
-  name: string;
-  checked: boolean;
-  onChange: () => void;
-  title: string;
-  desc: string;
-  disabled?: boolean;
-  disabledNote?: string | undefined;
-}) {
-  return (
-    <label
-      className={cn(
-        "glass rounded-2xl p-4 ring-1 transition-colors",
-        disabled
-          ? "cursor-not-allowed opacity-60"
-          : "cursor-pointer ring-transparent hover:bg-accent/40",
-        !disabled && checked && "ring-2 ring-primary",
-      )}
-    >
-      <span className="flex items-start gap-3">
-        <input
-          type="radio"
-          name={name}
-          checked={checked && !disabled}
-          disabled={disabled}
-          onChange={onChange}
-          className="mt-0.5 size-4 shrink-0 accent-primary disabled:cursor-not-allowed"
-        />
-        <span>
-          <span className="block text-sm font-semibold">{title}</span>
-          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-            {disabled && disabledNote ? disabledNote : desc}
-          </span>
-        </span>
-      </span>
-    </label>
   );
 }

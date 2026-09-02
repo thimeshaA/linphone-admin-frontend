@@ -4,6 +4,7 @@ import type { Reseller, ResellerStatus } from "@/lib/telephony/types";
 interface BackendAdmin {
   id: string | number;
   username: string;
+  email?: string;
   role: "admin" | "reseller";
   status: ResellerStatus;
   expires_at: string | null;
@@ -15,6 +16,7 @@ function mapReseller(a: BackendAdmin): Reseller {
   return {
     id: String(a.id),
     username: a.username,
+    email: a.email ?? "",
     status: a.status,
     expiresAt: a.expires_at,
     expiredAt: a.expired_at,
@@ -26,11 +28,17 @@ function mapReseller(a: BackendAdmin): Reseller {
 export const resellersApi = {
   list: () =>
     apiFetch<BackendAdmin[]>("/admins").then((rows) => rows.map(mapReseller)),
-  create: (input: { username: string; password: string; expiresAt: string }) =>
+  create: (input: {
+    username: string;
+    email: string;
+    password: string;
+    expiresAt: string;
+  }) =>
     apiFetch<BackendAdmin>("/admins", {
       method: "POST",
       body: JSON.stringify({
         username: input.username,
+        email: input.email,
         password: input.password,
         expires_at: toMySqlDatetime(input.expiresAt),
       }),

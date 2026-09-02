@@ -12,7 +12,7 @@ export const MOCK_USERS: MockUser[] = [
     name: "Nora Varga",
     org: "Network Operations",
     role: "admin",
-    modules: ["sip", "esim"],
+    modules: ["sip"],
     blurb: "Full platform access, approvals, delete rights",
   },
   {
@@ -23,17 +23,7 @@ export const MOCK_USERS: MockUser[] = [
     org: "LineaBridge SARL",
     role: "reseller",
     modules: ["sip"],
-    blurb: "Reseller — SIP module approved, eSIM locked",
-  },
-  {
-    id: "u-res-esim",
-    identifier: "a.okonkwo@zentracom.ng",
-    password: "command",
-    name: "Adaeze Okonkwo",
-    org: "ZentraCom Nigeria",
-    role: "reseller",
-    modules: ["esim"],
-    blurb: "Reseller — eSIM only, SIP panel locked",
+    blurb: "Reseller — SIP module approved",
   },
   {
     id: "u-res-both",
@@ -42,8 +32,8 @@ export const MOCK_USERS: MockUser[] = [
     name: "Mateo de León",
     org: "ArcVoice Telecom",
     role: "reseller",
-    modules: ["sip", "esim"],
-    blurb: "Reseller — both modules approved",
+    modules: ["sip"],
+    blurb: "Reseller — SIP module approved",
   },
   {
     id: "u-end",

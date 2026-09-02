@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Loader2, PauseCircle, PlayCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  Loader2,
+  PauseCircle,
+  Plus,
+  PlayCircle,
+  Trash2,
+  UserCog,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -13,7 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { useTelephony } from "@/contexts/telephony-context";
 import { formatDate, toDateInput } from "@/lib/telephony/status";
+import { addPeriods } from "@/lib/telephony/period";
 import type { SipAccount } from "@/lib/telephony/types";
+import { PeriodPicker } from "./period-picker";
 
 const SIP_DOMAIN = "test.kryptoline.com";
 
@@ -40,6 +50,43 @@ function Label({
   );
 }
 
+// Shared by the create and reassign dialogs — both need an admin to pick a
+// reseller to own the account. Disabled resellers are shown but unselectable
+// since the backend rejects assigning accounts to them.
+function ResellerSelect({
+  id,
+  value,
+  onChange,
+  invalid,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  invalid?: boolean;
+}) {
+  const { resellers, resellersLoading } = useTelephony();
+  return (
+    <select
+      id={id}
+      className={inputClass}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-invalid={invalid}
+      disabled={resellersLoading}
+    >
+      <option value="">
+        {resellersLoading ? "Loading resellers…" : "Select a reseller"}
+      </option>
+      {resellers.map((r) => (
+        <option key={r.id} value={r.id} disabled={r.status === "disabled"}>
+          {r.username}
+          {r.status === "disabled" ? " (disabled)" : ""}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function CreateAccountDialog({
   open,
   onOpenChange,
@@ -49,17 +96,20 @@ export function CreateAccountDialog({
 }) {
   const { createAccount } = useTelephony();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [expiresAt, setExpiresAt] = useState(
-    toDateInput(new Date(Date.now() + 365 * 86_400_000).toISOString()),
-  );
+  const [resellerId, setResellerId] = useState("");
+  const [periods, setPeriods] = useState(1); // 1 x 6 months = the base period
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [serverError, setServerError] = useState("");
 
   function reset() {
     setUsername("");
+    setEmail("");
     setPassword("");
+    setResellerId("");
+    setPeriods(1);
     setErrors({});
     setState("idle");
     setServerError("");
@@ -71,19 +121,26 @@ export function CreateAccountDialog({
     if (!/^[\w.-]{1,64}$/.test(username))
       next["username"] =
         "Use letters, numbers, dots, underscores or hyphens only — no spaces.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      next["email"] = "Enter a valid email address.";
     if (!password.trim())
       next["password"] = "A password is required to register the identity.";
-    if (new Date(expiresAt).getTime() <= Date.now())
-      next["expiresAt"] = "Expiry must be in the future.";
+    if (!resellerId)
+      next["reseller"] = "Choose which reseller owns this account.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
     setState("loading");
     try {
+      const expiresAt = toDateInput(
+        addPeriods(new Date(), periods).toISOString(),
+      );
       const created = await createAccount({
         sipId: `${username}@${SIP_DOMAIN}`,
+        email: email.trim(),
         password,
         expiresAt,
+        creatorId: resellerId,
       });
       toast.success(`${created.sipId} provisioned`, {
         description: `Active until ${formatDate(created.expiresAt)}.`,
@@ -112,7 +169,8 @@ export function CreateAccountDialog({
           </DialogTitle>
           <DialogDescription>
             The identity is registered on the Flexisip cluster immediately and
-            starts in the active state until the expiry date you set.
+            starts in the active state. Subscriptions run in fixed 6-month
+            periods.
           </DialogDescription>
         </DialogHeader>
 
@@ -130,6 +188,24 @@ export function CreateAccountDialog({
             {errors["username"] ? (
               <p role="alert" className="text-xs text-negative-foreground">
                 {errors["username"]}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="c-email">Email</Label>
+            <input
+              id="c-email"
+              type="email"
+              className={inputClass}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="customer@example.com"
+              aria-invalid={!!errors["email"]}
+            />
+            {errors["email"] ? (
+              <p role="alert" className="text-xs text-negative-foreground">
+                {errors["email"]}
               </p>
             ) : null}
           </div>
@@ -153,22 +229,27 @@ export function CreateAccountDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="c-exp">Expiry date</Label>
-            <input
-              id="c-exp"
-              type="date"
-              className={inputClass}
-              value={expiresAt}
-              min={toDateInput(new Date(Date.now() + 86_400_000).toISOString())}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              aria-invalid={!!errors["expiresAt"]}
+            <Label htmlFor="c-reseller">Assign to reseller</Label>
+            <ResellerSelect
+              id="c-reseller"
+              value={resellerId}
+              onChange={setResellerId}
+              invalid={!!errors["reseller"]}
             />
-            {errors["expiresAt"] ? (
+            {errors["reseller"] ? (
               <p role="alert" className="text-xs text-negative-foreground">
-                {errors["expiresAt"]}
+                {errors["reseller"]}
               </p>
             ) : null}
           </div>
+
+          <PeriodPicker
+            id="c-exp"
+            label="Subscription length"
+            baseDate={new Date()}
+            periods={periods}
+            onChange={setPeriods}
+          />
 
           {state === "error" ? (
             <p
@@ -215,21 +296,18 @@ export function RenewDialog({
   onClose: () => void;
 }) {
   const { renewAccount } = useTelephony();
-  const [date, setDate] = useState("");
+  const [periods, setPeriods] = useState(1); // 1 x 6 months = the base period
   const [loading, setLoading] = useState(false);
-  const current = account?.expiresAt ?? new Date().toISOString();
-  const value =
-    date ||
-    toDateInput(
-      new Date(new Date(current).getTime() + 365 * 86_400_000).toISOString(),
-    );
+  const base = new Date(account?.expiresAt ?? new Date().toISOString());
+  const newExpiry = addPeriods(base, periods);
+  const value = toDateInput(newExpiry.toISOString());
 
   return (
     <Dialog
       open={!!account}
       onOpenChange={(v) => {
         if (!v) {
-          setDate("");
+          setPeriods(1);
           onClose();
         }
       }}
@@ -240,8 +318,8 @@ export function RenewDialog({
             Renew account
           </DialogTitle>
           <DialogDescription>
-            Choose any expiry date. Renewing an expired account restores it to
-            active immediately.
+            Renews in fixed 6-month periods. Renewing an expired account
+            restores it to active immediately.
           </DialogDescription>
         </DialogHeader>
 
@@ -260,22 +338,18 @@ export function RenewDialog({
           <div>
             <p className="label-meta">New expiry</p>
             <p className="mt-1.5 text-sm font-semibold text-module-strong">
-              {formatDate(new Date(value).toISOString())}
+              {formatDate(newExpiry.toISOString())}
             </p>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="r-date">New expiry date</Label>
-          <input
-            id="r-date"
-            type="date"
-            className={inputClass}
-            value={value}
-            min={toDateInput(new Date(Date.now() + 86_400_000).toISOString())}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
+        <PeriodPicker
+          id="r-date"
+          label="Extend by"
+          baseDate={base}
+          periods={periods}
+          onChange={setPeriods}
+        />
 
         <DialogFooter className="gap-2 sm:gap-2">
           <button type="button" className={ghostBtn} onClick={onClose}>
@@ -291,9 +365,9 @@ export function RenewDialog({
               try {
                 await renewAccount(account.id, value);
                 toast.success(`${account.sipId} renewed`, {
-                  description: `Now valid until ${formatDate(new Date(value).toISOString())}.`,
+                  description: `Now valid until ${formatDate(newExpiry.toISOString())}.`,
                 });
-                setDate("");
+                setPeriods(1);
                 onClose();
               } catch {
                 toast.error("Renewal failed", {
@@ -389,6 +463,107 @@ export function DisableDialog({
               <Loader2 aria-hidden="true" className="size-4 animate-spin" />
             ) : null}
             {enabling ? "Re-enable account" : "Disable account"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ReassignDialog({
+  account,
+  onClose,
+}: {
+  account: SipAccount | null;
+  onClose: () => void;
+}) {
+  const { reassignAccount } = useTelephony();
+  const [resellerId, setResellerId] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  return (
+    <Dialog
+      open={!!account}
+      onOpenChange={(v) => {
+        if (!v) {
+          setResellerId("");
+          setError("");
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="rounded-[20px] sm:max-w-md">
+        <DialogHeader>
+          <span
+            aria-hidden="true"
+            className="grid size-10 place-items-center rounded-2xl bg-neutral-pill text-muted-foreground"
+          >
+            <UserCog className="size-5" />
+          </span>
+          <DialogTitle className="font-display text-xl">
+            Reassign account
+          </DialogTitle>
+          <DialogDescription>
+            Moves this account to a different reseller. It will stop appearing
+            under the current owner and start appearing under the new one.
+          </DialogDescription>
+        </DialogHeader>
+
+        <p className="font-mono text-sm break-all">{account?.sipId}</p>
+
+        <div className="space-y-2">
+          <Label htmlFor="rs-reseller">
+            Currently: {account?.createdByName || "Unassigned"}
+          </Label>
+          <ResellerSelect
+            id="rs-reseller"
+            value={resellerId}
+            onChange={setResellerId}
+            invalid={!!error}
+          />
+          {error ? (
+            <p role="alert" className="text-xs text-negative-foreground">
+              {error}
+            </p>
+          ) : null}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <button type="button" className={ghostBtn} onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={primaryBtn}
+            disabled={loading}
+            onClick={async () => {
+              if (!account) return;
+              if (!resellerId) {
+                setError("Choose the reseller to reassign this account to.");
+                return;
+              }
+              setLoading(true);
+              try {
+                await reassignAccount(account.id, resellerId);
+                toast.success(`${account.sipId} reassigned`, {
+                  description: "The account now belongs to the new reseller.",
+                });
+                setResellerId("");
+                onClose();
+              } catch {
+                toast.error("Reassign failed", {
+                  description: "The backend rejected the request. Try again.",
+                });
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {loading ? (
+              <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+            ) : null}
+            {loading ? "Reassigning…" : "Confirm reassign"}
           </button>
         </DialogFooter>
       </DialogContent>
@@ -493,6 +668,276 @@ export function DeleteDialog({
             {loading ? "Deleting…" : "Delete permanently"}
           </button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface RequestRow {
+  key: string;
+  name: string;
+  email: string;
+  phone: string;
+  note: string;
+}
+
+function newRequestRow(): RequestRow {
+  return {
+    key: `row-${Math.random().toString(36).slice(2, 9)}`,
+    name: "",
+    email: "",
+    phone: "",
+    note: "",
+  };
+}
+
+export function RequestAccountsDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { submitAccountRequests } = useTelephony();
+  const [rows, setRows] = useState<RequestRow[]>([newRequestRow()]);
+  const [errors, setErrors] = useState<Record<string, Record<string, string>>>(
+    {},
+  );
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [serverError, setServerError] = useState("");
+
+  function reset() {
+    setRows([newRequestRow()]);
+    setErrors({});
+    setState("idle");
+    setServerError("");
+  }
+
+  function updateRow(
+    key: string,
+    field: "name" | "email" | "phone" | "note",
+    value: string,
+  ) {
+    setRows((prev) =>
+      prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)),
+    );
+  }
+
+  function addRow() {
+    setRows((prev) => [...prev, newRequestRow()]);
+  }
+
+  function removeRow(key: string) {
+    setRows((prev) =>
+      prev.length > 1 ? prev.filter((r) => r.key !== key) : prev,
+    );
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const nextErrors: Record<string, Record<string, string>> = {};
+    for (const row of rows) {
+      const rowErrors: Record<string, string> = {};
+      const email = row.email.trim();
+      const phone = row.phone.trim();
+      if (!row.name.trim()) rowErrors["name"] = "Enter a name.";
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        rowErrors["email"] = "Enter a valid email address.";
+      if (!email && !phone)
+        rowErrors["contact"] = "Enter an email address or a phone number.";
+      if (Object.keys(rowErrors).length) nextErrors[row.key] = rowErrors;
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+
+    setState("loading");
+    try {
+      await submitAccountRequests(
+        rows.map((r) => ({
+          name: r.name.trim(),
+          email: r.email.trim() || undefined,
+          phone: r.phone.trim() || undefined,
+          note: r.note.trim() || undefined,
+        })),
+      );
+      toast.success(
+        rows.length === 1
+          ? "Account request sent"
+          : `${rows.length} account requests sent`,
+        { description: "Our operations team will follow up by email." },
+      );
+      reset();
+      onOpenChange(false);
+    } catch (err) {
+      setServerError(
+        err instanceof Error ? err.message : "The request failed to send.",
+      );
+      setState("error");
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) =>
+        v ? onOpenChange(v) : (reset(), onOpenChange(false))
+      }
+    >
+      <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-[20px] sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl">
+            Request account(s)
+          </DialogTitle>
+          <DialogDescription>
+            Nothing is provisioned automatically — this sends your request to
+            our operations team, who will follow up by email. Add as many
+            entries as you need and send them in one submission.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit} className="space-y-4" noValidate>
+          <div className="space-y-4">
+            {rows.map((row, i) => (
+              <div
+                key={row.key}
+                className="space-y-3 rounded-xl bg-background p-4 ring-1 ring-input"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="label-meta">Entry {i + 1}</p>
+                  {rows.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => removeRow(row.key)}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-negative-foreground"
+                      aria-label={`Remove entry ${i + 1}`}
+                    >
+                      <Trash2 aria-hidden="true" className="size-3.5" />
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor={`req-name-${row.key}`}>Name</Label>
+                  <input
+                    id={`req-name-${row.key}`}
+                    className={inputClass}
+                    value={row.name}
+                    onChange={(e) => updateRow(row.key, "name", e.target.value)}
+                    aria-invalid={!!errors[row.key]?.["name"]}
+                  />
+                  {errors[row.key]?.["name"] ? (
+                    <p
+                      role="alert"
+                      className="text-xs text-negative-foreground"
+                    >
+                      {errors[row.key]?.["name"]}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`req-email-${row.key}`}>Email</Label>
+                    <input
+                      id={`req-email-${row.key}`}
+                      type="email"
+                      className={inputClass}
+                      value={row.email}
+                      onChange={(e) =>
+                        updateRow(row.key, "email", e.target.value)
+                      }
+                      aria-invalid={!!errors[row.key]?.["email"]}
+                    />
+                    {errors[row.key]?.["email"] ? (
+                      <p
+                        role="alert"
+                        className="text-xs text-negative-foreground"
+                      >
+                        {errors[row.key]?.["email"]}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`req-phone-${row.key}`}>Phone</Label>
+                    <input
+                      id={`req-phone-${row.key}`}
+                      type="tel"
+                      className={inputClass}
+                      value={row.phone}
+                      onChange={(e) =>
+                        updateRow(row.key, "phone", e.target.value)
+                      }
+                      aria-invalid={!!errors[row.key]?.["contact"]}
+                    />
+                  </div>
+                </div>
+                {errors[row.key]?.["contact"] ? (
+                  <p role="alert" className="text-xs text-negative-foreground">
+                    {errors[row.key]?.["contact"]}
+                  </p>
+                ) : null}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor={`req-note-${row.key}`}>Note</Label>
+                  <input
+                    id={`req-note-${row.key}`}
+                    className={inputClass}
+                    value={row.note}
+                    onChange={(e) => updateRow(row.key, "note", e.target.value)}
+                    placeholder="Optional — anything that helps us provision this account"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={addRow}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-secondary px-4 text-sm font-medium"
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            Add another account
+          </button>
+
+          {state === "error" ? (
+            <p
+              role="alert"
+              className="rounded-xl bg-negative-muted px-4 py-3 text-sm text-negative-foreground"
+            >
+              {serverError}. Nothing was sent — your entries are preserved, try
+              again.
+            </p>
+          ) : null}
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button
+              type="button"
+              className={ghostBtn}
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={primaryBtn}
+              disabled={state === "loading"}
+            >
+              {state === "loading" ? (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+              ) : null}
+              {state === "loading"
+                ? "Sending…"
+                : rows.length === 1
+                  ? "Send request"
+                  : `Send ${rows.length} requests`}
+            </button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

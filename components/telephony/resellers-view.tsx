@@ -8,6 +8,7 @@ import {
   PlayCircle,
   Plus,
   Search,
+  SlidersHorizontal,
   Users,
 } from "lucide-react";
 import { EmptyState, PageHeader, StatBlock } from "./primitives";
@@ -15,123 +16,27 @@ import { StatusPill } from "./status-pill";
 import {
   CreateResellerDialog,
   DisableResellerDialog,
-  RenewResellerDialog,
   ResetResellerPasswordDialog,
 } from "./reseller-dialogs";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTelephony } from "@/contexts/telephony-context";
 import { formatDate, resellerStatus } from "@/lib/telephony/status";
-import { getResellers } from "@/lib/telephony/derived";
 import type { AccountStatus, ModuleKey, Reseller } from "@/lib/telephony/types";
 import { cn } from "@/lib/utils";
 
-const MODULE_LABEL: Record<ModuleKey, string> = { sip: "SIP", esim: "eSIM" };
-
-export function ResellersView({ module }: { module: ModuleKey }) {
-  if (module === "sip") return <SipResellersPanel />;
-  return <MockResellersPanel module={module} />;
-}
-
-/**
- * eSIM has no backend yet — this stays the original read-only view straight
- * off `MOCK_USERS`, unaffected by the real /api/admins integration below.
- */
-function MockResellersPanel({ module }: { module: ModuleKey }) {
-  const { user, users, accounts } = useTelephony();
-
-  if (user?.role !== "admin") {
-    return (
-      <EmptyState
-        title="Administrators only"
-        description="Reseller management is restricted to platform administrators."
-      />
-    );
-  }
-
-  const rows = getResellers(users, accounts, module);
-
-  return (
-    <div className="space-y-10">
-      <PageHeader
-        module={module}
-        eyebrow="Customer management"
-        title="Resellers"
-        description={`Organisations approved for the ${MODULE_LABEL[module]} module.`}
-      />
-
-      <section className="grid grid-cols-2 gap-6 lg:grid-cols-4">
-        <StatBlock
-          label={`${MODULE_LABEL[module]} resellers`}
-          value={rows.length}
-        />
-      </section>
-
-      {rows.length === 0 ? (
-        <div className="glass rounded-[20px]">
-          <EmptyState
-            icon={<Users aria-hidden="true" className="size-5" />}
-            title="No resellers yet"
-            description={`No organisation has been approved for ${MODULE_LABEL[module]} yet.`}
-          />
-        </div>
-      ) : (
-        <div className="glass overflow-x-auto rounded-[20px]">
-          <table className="w-full min-w-[640px] text-sm">
-            <caption className="sr-only">
-              Resellers with {MODULE_LABEL[module]} access
-            </caption>
-            <thead>
-              <tr className="border-b border-border">
-                {["Organisation", "Contact", "Modules"]
-                  .concat(module === "sip" ? ["Accounts created"] : [])
-                  .map((h) => (
-                    <th
-                      key={h}
-                      scope="col"
-                      className="label-meta px-5 py-3.5 text-left"
-                    >
-                      {h}
-                    </th>
-                  ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ user: reseller, accountCount }) => (
-                <tr
-                  key={reseller.id}
-                  className="border-b border-border last:border-0 hover:bg-accent/30"
-                >
-                  <td className="px-5 py-4">
-                    <span className="block font-medium">
-                      {reseller.org ?? reseller.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {reseller.name}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 font-mono text-xs text-muted-foreground">
-                    {reseller.identifier}
-                  </td>
-                  <td className="px-5 py-4 uppercase text-xs tracking-wider text-muted-foreground">
-                    {reseller.modules.join(" · ")}
-                  </td>
-                  {module === "sip" ? (
-                    <td className="px-5 py-4 tabular-nums">{accountCount}</td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+// eSIM is removed — this view now always renders the real SIP reseller
+// panel. `module` stays in the props so the call site (which still passes
+// module="sip") doesn't need to change.
+export function ResellersView({ module: _module }: { module: ModuleKey }) {
+  return <SipResellersPanel />;
 }
 
 const FILTERS: { key: AccountStatus | "all"; label: string }[] = [
@@ -152,7 +57,6 @@ function SipResellersPanel() {
   const [sort, setSort] = useState<"expiry" | "created" | "username">("expiry");
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
-  const [renewing, setRenewing] = useState<Reseller | null>(null);
   const [resetting, setResetting] = useState<Reseller | null>(null);
   const [toggling, setToggling] = useState<Reseller | null>(null);
 
@@ -263,10 +167,11 @@ function SipResellersPanel() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Desktop: filter pills, one per status */}
             <div
               role="group"
               aria-label="Filter by status"
-              className="flex flex-wrap gap-1.5"
+              className="hidden flex-wrap gap-1.5 md:flex"
             >
               {FILTERS.map((f) => (
                 <button
@@ -288,6 +193,33 @@ function SipResellersPanel() {
                 </button>
               ))}
             </div>
+
+            {/* Mobile: single Filter dropdown, same options as a select list */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Filter by status"
+                className="glass flex h-9 items-center gap-1.5 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+              >
+                <SlidersHorizontal aria-hidden="true" className="size-3.5" />
+                Filter: {FILTERS.find((f) => f.key === filter)?.label}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuRadioGroup
+                  value={filter}
+                  onValueChange={(v) => {
+                    setFilter(v as AccountStatus | "all");
+                    setPage(0);
+                  }}
+                >
+                  {FILTERS.map((f) => (
+                    <DropdownMenuRadioItem key={f.key} value={f.key}>
+                      {f.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <label className="sr-only" htmlFor="reseller-sort">
               Sort resellers
             </label>
@@ -361,6 +293,7 @@ function SipResellersPanel() {
                   <tr className="border-b border-border">
                     {[
                       "Username",
+                      "Email",
                       "Status",
                       "Expiry",
                       "Created",
@@ -394,6 +327,9 @@ function SipResellersPanel() {
                       >
                         {r.username}
                       </th>
+                      <td className="px-5 py-4 text-muted-foreground">
+                        {r.email || "—"}
+                      </td>
                       <td className="px-5 py-4">
                         <StatusPill status={resellerStatus(r)} />
                       </td>
@@ -408,13 +344,6 @@ function SipResellersPanel() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setRenewing(r)}
-                            className="h-9 rounded-lg bg-secondary px-3 text-xs font-semibold"
-                          >
-                            Renew
-                          </button>
                           <RowMenu
                             reseller={r}
                             onReset={() => setResetting(r)}
@@ -433,36 +362,36 @@ function SipResellersPanel() {
               {pageRows.map((r) => (
                 <li key={r.id} className="glass rounded-[20px] p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="truncate font-mono text-sm font-medium">
-                      {r.username}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-sm font-medium">
+                        {r.username}
+                      </p>
+                      {r.email ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {r.email}
+                        </p>
+                      ) : null}
+                    </div>
                     <StatusPill
                       status={resellerStatus(r)}
                       className="shrink-0"
                     />
                   </div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3">
-                    <div>
-                      <dt className="label-meta">Expiry</dt>
-                      <dd className="mt-1 text-sm tabular-nums">
-                        {r.expiresAt ? formatDate(r.expiresAt) : "—"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="label-meta">Accounts created</dt>
-                      <dd className="mt-1 text-sm tabular-nums">
-                        {accountCountFor(r.id)}
-                      </dd>
-                    </div>
-                  </dl>
-                  <div className="mt-4 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRenewing(r)}
-                      className="h-11 flex-1 rounded-xl bg-secondary text-sm font-semibold"
-                    >
-                      Renew
-                    </button>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <dl className="grid flex-1 grid-cols-2 gap-3">
+                      <div>
+                        <dt className="label-meta">Expiry</dt>
+                        <dd className="mt-1 text-sm tabular-nums">
+                          {r.expiresAt ? formatDate(r.expiresAt) : "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="label-meta">Accounts created</dt>
+                        <dd className="mt-1 text-sm tabular-nums">
+                          {accountCountFor(r.id)}
+                        </dd>
+                      </div>
+                    </dl>
                     <RowMenu
                       reseller={r}
                       onReset={() => setResetting(r)}
@@ -502,10 +431,6 @@ function SipResellersPanel() {
       </section>
 
       <CreateResellerDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <RenewResellerDialog
-        reseller={renewing}
-        onClose={() => setRenewing(null)}
-      />
       <ResetResellerPasswordDialog
         reseller={resetting}
         onClose={() => setResetting(null)}

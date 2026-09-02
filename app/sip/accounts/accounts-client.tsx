@@ -8,7 +8,9 @@ import {
   PlayCircle,
   Plus,
   Search,
+  Send,
   Trash2,
+  UserCog,
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
@@ -22,6 +24,8 @@ import {
   CreateAccountDialog,
   DeleteDialog,
   DisableDialog,
+  ReassignDialog,
+  RequestAccountsDialog,
 } from "@/components/telephony/account-dialogs";
 import {
   DropdownMenu,
@@ -68,8 +72,10 @@ function SipAccountsPage() {
   );
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
   const [toggling, setToggling] = useState<SipAccount | null>(null);
   const [deleting, setDeleting] = useState<SipAccount | null>(null);
+  const [reassigning, setReassigning] = useState<SipAccount | null>(null);
 
   const isAdmin = user?.role === "admin";
   const resellerFilterName = resellerFilter
@@ -138,14 +144,25 @@ function SipAccountsPage() {
             : "Only the accounts your organisation created are shown here."
         }
         actions={
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="module-bg inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-transform active:scale-[0.98]"
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            New account
-          </button>
+          isAdmin ? (
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="module-bg inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-transform active:scale-[0.98]"
+            >
+              <Plus aria-hidden="true" className="size-4" />
+              New account
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setRequestOpen(true)}
+              className="module-bg inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition-transform active:scale-[0.98]"
+            >
+              <Send aria-hidden="true" className="size-4" />
+              Request account(s)
+            </button>
+          )
         }
       />
 
@@ -271,7 +288,9 @@ function SipAccountsPage() {
               description={
                 query || filter !== "all"
                   ? "Try a different search term or clear the status filter to see the full list."
-                  : "Provision the first SIP identity to start managing registrations here."
+                  : isAdmin
+                    ? "Provision the first SIP identity to start managing registrations here."
+                    : "Request accounts from operations to get started."
               }
               action={
                 query || filter !== "all" ? (
@@ -285,13 +304,21 @@ function SipAccountsPage() {
                   >
                     Clear filters
                   </button>
-                ) : (
+                ) : isAdmin ? (
                   <button
                     type="button"
                     onClick={() => setCreateOpen(true)}
                     className="module-bg rounded-xl px-4 py-2.5 text-sm font-semibold"
                   >
                     Provision an account
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setRequestOpen(true)}
+                    className="module-bg rounded-xl px-4 py-2.5 text-sm font-semibold"
+                  >
+                    Request account(s)
                   </button>
                 )
               }
@@ -307,7 +334,7 @@ function SipAccountsPage() {
                 </caption>
                 <thead>
                   <tr className="border-b border-border">
-                    {["Identifier", "Status", "Expiry", "Created"]
+                    {["Identifier", "Email", "Status", "Expiry", "Created"]
                       .concat(isAdmin ? ["Created by"] : [])
                       .map((h) => (
                         <th
@@ -338,6 +365,9 @@ function SipAccountsPage() {
                       >
                         {a.sipId}
                       </th>
+                      <td className="px-5 py-4 text-muted-foreground">
+                        {a.email || "—"}
+                      </td>
                       <td className="px-5 py-4">
                         <StatusPill status={accountStatus(a)} />
                       </td>
@@ -359,6 +389,7 @@ function SipAccountsPage() {
                             isAdmin={isAdmin}
                             onToggle={() => setToggling(a)}
                             onDelete={() => setDeleting(a)}
+                            onReassign={() => setReassigning(a)}
                           />
                         </div>
                       </td>
@@ -377,6 +408,11 @@ function SipAccountsPage() {
                       <p className="truncate font-mono text-sm font-medium">
                         {a.sipId}
                       </p>
+                      {a.email ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {a.email}
+                        </p>
+                      ) : null}
                     </div>
                     <StatusPill
                       status={accountStatus(a)}
@@ -405,6 +441,7 @@ function SipAccountsPage() {
                       isAdmin={isAdmin}
                       onToggle={() => setToggling(a)}
                       onDelete={() => setDeleting(a)}
+                      onReassign={() => setReassigning(a)}
                     />
                   </div>
                 </li>
@@ -440,8 +477,13 @@ function SipAccountsPage() {
       </section>
 
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <RequestAccountsDialog open={requestOpen} onOpenChange={setRequestOpen} />
       <DisableDialog account={toggling} onClose={() => setToggling(null)} />
       <DeleteDialog account={deleting} onClose={() => setDeleting(null)} />
+      <ReassignDialog
+        account={reassigning}
+        onClose={() => setReassigning(null)}
+      />
     </div>
   );
 }
@@ -451,11 +493,13 @@ function RowMenu({
   isAdmin,
   onToggle,
   onDelete,
+  onReassign,
 }: {
   account: SipAccount;
   isAdmin: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onReassign: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -476,6 +520,11 @@ function RowMenu({
         </DropdownMenuItem>
         {isAdmin ? (
           <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onReassign} className="gap-2">
+              <UserCog aria-hidden="true" className="size-4" />
+              Reassign owner
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={onDelete}

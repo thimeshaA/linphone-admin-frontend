@@ -6,6 +6,7 @@ import { PRIMARY_AREAS, type PrimaryArea } from "@/lib/telephony/nav-config";
 import { hasPermission, permissionsFor } from "@/lib/telephony/permissions";
 import { useTelephony } from "@/contexts/telephony-context";
 import { cn } from "@/lib/utils";
+import { Logo } from "./logo";
 import { RoleSwitcher } from "./role-switcher";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
@@ -42,10 +43,9 @@ export function PrimaryRail({
       <Link
         href="/overview"
         aria-label="Telephony Operations — overview"
-        data-module="success"
-        className="module-bg mb-5 grid size-10 shrink-0 place-items-center rounded-[12px] font-display text-xs font-bold"
+        className="mb-5 grid size-10 shrink-0 place-items-center"
       >
-        AC
+        <Logo className="h-8 w-auto" />
       </Link>
 
       <ul className="flex flex-1 flex-col items-center gap-1">

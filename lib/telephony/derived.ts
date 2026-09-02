@@ -1,27 +1,5 @@
 import { accountStatus } from "./status";
-import type { ModuleKey, MockUser, Reseller, SipAccount } from "./types";
-
-export interface ResellerRow {
-  user: MockUser;
-  accountCount: number;
-}
-
-/** Resellers who hold access to the given module, with their account count. */
-export function getResellers(
-  users: MockUser[],
-  accounts: SipAccount[],
-  module: ModuleKey,
-): ResellerRow[] {
-  return users
-    .filter((u) => u.role === "reseller" && u.modules.includes(module))
-    .map((user) => ({
-      user,
-      accountCount:
-        module === "sip"
-          ? accounts.filter((a) => a.createdById === user.id).length
-          : 0,
-    }));
-}
+import type { ModuleKey, Reseller, SipAccount } from "./types";
 
 /**
  * "End users" scoped to a module = the identities held by that module's
@@ -104,11 +82,9 @@ export interface ResellerAccountStats {
 }
 
 /**
- * Per-reseller account totals with an active/disabled split — same
- * createdById-matching technique as `getResellers()` above, but against the
- * real reseller logins (`Reseller[]`, backed by /api/admins) rather than
- * `MOCK_USERS`, since that's what SIP resellers actually are once the
- * account-count needs an active/disabled breakdown alongside it.
+ * Per-reseller account totals with an active/disabled split, matched by
+ * `createdById` against the real reseller logins (`Reseller[]`, backed by
+ * /api/admins).
  */
 export function getResellerAccountStats(
   resellers: Reseller[],
