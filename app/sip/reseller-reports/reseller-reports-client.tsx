@@ -1,5 +1,6 @@
 "use client";
 
+import { Users } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
 import { EmptyState } from "@/components/telephony/primitives";
 import { ReportGenerator } from "@/components/telephony/report-generator";
@@ -33,6 +34,13 @@ function ResellerReportsPage() {
       description="Growth, renewal and activity reporting across your reseller network."
       filenamePrefix="reseller-report"
       generate={reportsApi.resellers}
+      icon={<Users aria-hidden="true" className="size-6" />}
+      highlights={[
+        "New reseller signups added this period",
+        "Renewals and upcoming expiries across your network",
+        "Account creation activity broken down by reseller",
+        "Status changes — disables, re-enables and password resets",
+      ]}
     />
   );
 }

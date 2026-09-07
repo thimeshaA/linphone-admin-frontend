@@ -1,12 +1,12 @@
 import { CircleCheck, CircleMinus, CircleSlash, Clock3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STATUS_LABEL } from "@/lib/telephony/status";
-import type { AccountStatus } from "@/lib/telephony/types";
+import type { AccountStatus, ModuleKey } from "@/lib/telephony/types";
 
 /*
  * Palette rules:
  *  active   -> neon green (healthy / positive)
- *  expiring -> active module identity (orange for SIP, cyan for eSIM)
+ *  expiring -> active module identity (orange for SIP)
  *  disabled / expired -> no red in the palette, so meaning comes from the icon
  *  and label with a reduced-opacity white/black treatment.
  */
@@ -69,7 +69,7 @@ export function ModuleTag({
   module,
   className,
 }: {
-  module: "sip" | "esim";
+  module: ModuleKey;
   className?: string;
 }) {
   return (
@@ -81,7 +81,7 @@ export function ModuleTag({
       )}
     >
       <span aria-hidden="true" className="size-1.5 rounded-full bg-module" />
-      {module === "sip" ? "SIP" : "eSIM"}
+      {module.toUpperCase()}
     </span>
   );
 }

@@ -2,14 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import type { ModuleKey } from "@/lib/telephony/types";
 
-export function CountUp({
-  value,
-  className,
-}: {
-  value: number;
-  className?: string;
-}) {
+function CountUp({ value, className }: { value: number; className?: string }) {
   const [display, setDisplay] = useState(value);
   const prev = useRef(value);
 
@@ -90,7 +85,7 @@ export function PageHeader({
   title: string;
   description?: string;
   actions?: React.ReactNode;
-  module?: "sip" | "esim";
+  module?: ModuleKey;
 }) {
   return (
     <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:items-end sm:justify-between">
@@ -102,9 +97,7 @@ export function PageHeader({
                 aria-hidden="true"
                 className="size-1.5 rounded-full bg-module"
               />
-              <span className="text-module-strong">
-                {module === "sip" ? "SIP" : "eSIM"}
-              </span>
+              <span className="text-module-strong">{module.toUpperCase()}</span>
               <span aria-hidden="true" className="opacity-40">
                 /
               </span>
@@ -151,49 +144,6 @@ export function EmptyState({
         {description}
       </p>
       {action ? <div className="mt-5">{action}</div> : null}
-    </div>
-  );
-}
-
-export function ErrorState({
-  title,
-  description,
-  onRetry,
-}: {
-  title: string;
-  description: string;
-  onRetry?: () => void;
-}) {
-  return (
-    <div
-      role="alert"
-      className="flex flex-col items-center justify-center px-6 py-14 text-center"
-    >
-      <p className="font-display text-base font-semibold text-negative-foreground">
-        {title}
-      </p>
-      <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">
-        {description}
-      </p>
-      {onRetry ? (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-5 rounded-full bg-secondary px-4 py-2 text-sm font-medium transition-transform active:scale-[0.97]"
-        >
-          Try again
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-export function RowSkeleton({ rows = 6 }: { rows?: number }) {
-  return (
-    <div className="space-y-2 p-4">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="h-12 animate-pulse rounded-xl bg-muted" />
-      ))}
     </div>
   );
 }

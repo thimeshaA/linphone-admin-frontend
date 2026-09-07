@@ -17,7 +17,7 @@
 /*
  * PALETTE — five colours only.
  *   Neon green #ABF43F  oklch(0.8879 0.2224 125.6)  success / healthy
- *   Cyan       #3FF4E5  oklch(0.8774 0.1289 187.7)  eSIM identity
+ *   Cyan       #3FF4E5  oklch(0.8774 0.1289 187.7)  secondary accent
  *   White      #FFFFFF  oklch(1 0 0)                content
  *   Black      #090909  oklch(0.0863 0 0)           foundation
  *   Orange     #F0793F  oklch(0.7062 0.1571 45.4)   SIP identity
@@ -107,7 +107,6 @@
   --color-neutral-pill: var(--neutral-pill);
   --color-module: var(--module);
   --color-sip: var(--sip);
-  --color-esim: var(--esim);
   --color-glass-border: var(--glass-border);
   --color-module-strong: var(--module-strong);
   --color-module-line: var(--module-line);
@@ -120,7 +119,7 @@
 
   /* palette constants */
   --sip: oklch(0.7062 0.1571 45.4);
-  --esim: oklch(0.8774 0.1289 187.7);
+  --accent-cyan: oklch(0.8774 0.1289 187.7);
   --success: oklch(0.8879 0.2224 125.6);
   --ink: oklch(0.0863 0 0);
   --paper: oklch(1 0 0);
@@ -139,12 +138,7 @@
   --orange-700: #a34410;
   --orange-800: #7a320b;
 
-  --cyan-50: #e3fbf9;
-  --cyan-600: #17b3a6;
-  --cyan-700: #0b6f6a;
-  --cyan-800: #075b57;
-
-  /* contextual identity: green at platform level, orange in SIP, cyan in eSIM */
+  /* contextual identity: green at platform level, orange in SIP */
   --module: var(--success);
 
   /* light theme: white surface, black type, same five colours */
@@ -176,7 +170,7 @@
   --input: oklch(0.0863 0 0 / 14%);
   --ring: var(--module);
   --chart-1: var(--sip);
-  --chart-2: var(--esim);
+  --chart-2: var(--accent-cyan);
   --chart-3: var(--success);
   --chart-4: var(--ink);
   --chart-5: oklch(0.0863 0 0 / 45%);
@@ -277,12 +271,6 @@
   --module-line: var(--module);
   --module-tint-bg: var(--module);
 }
-[data-module="esim"] {
-  --module: var(--esim);
-  --module-strong: var(--module);
-  --module-line: var(--module);
-  --module-tint-bg: var(--module);
-}
 [data-module="success"] {
   --module: var(--success);
   --module-strong: var(--module);
@@ -304,12 +292,6 @@
   --module-strong: var(--orange-800);
   --module-line: var(--orange-700);
   --module-tint-bg: var(--orange-50);
-}
-:root:not(.dark)[data-module="esim"],
-:root:not(.dark) [data-module="esim"] {
-  --module-strong: var(--cyan-800);
-  --module-line: var(--cyan-700);
-  --module-tint-bg: var(--cyan-50);
 }
 :root:not(.dark)[data-module="none"],
 :root:not(.dark) [data-module="none"],
@@ -442,7 +424,7 @@
     transparent
   );
   /* fixed brand hues for the chromatic fringe — same in both themes */
-  --lens-tabbar-fringe-esim: rgba(63, 244, 229, 0.55);
+  --lens-tabbar-fringe-cyan: rgba(63, 244, 229, 0.55);
   --lens-tabbar-fringe-sip: rgba(240, 121, 63, 0.45);
 }
 
@@ -650,7 +632,7 @@
     0 0 0 1px var(--lens-tabbar-rim),
     inset 0 1px 0 var(--lens-tabbar-specular),
     0 8px 20px var(--lens-tabbar-glow),
-    0 -1px 3px var(--lens-tabbar-fringe-esim),
+    0 -1px 3px var(--lens-tabbar-fringe-cyan),
     0 1px 3px var(--lens-tabbar-fringe-sip);
 }
 

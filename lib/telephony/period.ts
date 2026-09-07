@@ -1,6 +1,6 @@
 /** Subscription/renewal periods come in fixed 6-month blocks — no free-form
  * calendar dates. See components/telephony/period-picker.tsx. */
-export const MONTHS_PER_PERIOD = 6;
+const MONTHS_PER_PERIOD = 6;
 export const MIN_PERIODS = 1;
 export const MAX_PERIODS = 20; // 10 years — a sane ceiling, not a real limit
 

@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/telephony/primitives";
 import { MetaTag, ModuleTag } from "@/components/telephony/status-pill";
 import { useTelephony } from "@/contexts/telephony-context";
 import { accountStatus } from "@/lib/telephony/status";
+import type { ModuleKey } from "@/lib/telephony/types";
 
 export function OverviewClient() {
   return (
@@ -85,7 +86,7 @@ function ModuleCard({
   statLabel,
   tags,
 }: {
-  module: "sip" | "esim";
+  module: ModuleKey;
   to: string;
   icon: React.ReactNode;
   title: string;
@@ -137,7 +138,7 @@ function LockedCard({
   title,
   reason,
 }: {
-  module: "sip" | "esim";
+  module: ModuleKey;
   icon: React.ReactNode;
   title: string;
   reason: string;

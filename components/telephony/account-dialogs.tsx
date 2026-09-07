@@ -162,7 +162,7 @@ export function CreateAccountDialog({
         v ? onOpenChange(v) : (reset(), onOpenChange(false))
       }
     >
-      <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-[20px] sm:max-w-lg">
+      <DialogContent className="rounded-[20px] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
             Provision a SIP account
@@ -783,7 +783,7 @@ export function RequestAccountsDialog({
         v ? onOpenChange(v) : (reset(), onOpenChange(false))
       }
     >
-      <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-[20px] sm:max-w-2xl">
+      <DialogContent className="rounded-[20px] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
             Request account(s)

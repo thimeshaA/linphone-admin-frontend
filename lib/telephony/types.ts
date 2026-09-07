@@ -1,5 +1,5 @@
 export type ModuleKey = "sip";
-export type Role = "admin" | "reseller" | "enduser";
+type Role = "admin" | "reseller" | "enduser";
 
 export interface MockUser {
   id: string;

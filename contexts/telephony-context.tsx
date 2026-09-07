@@ -33,10 +33,8 @@ type Theme = "light" | "dark";
 interface Ctx {
   hydrated: boolean;
   user: MockUser | null;
-  users: MockUser[];
   signIn: (identifier: string, password: string) => Promise<MockUser>;
   signOut: () => void;
-  impersonate: (userId: string) => MockUser | null;
   theme: Theme;
   toggleTheme: () => void;
   accounts: SipAccount[];
@@ -73,7 +71,7 @@ interface Ctx {
   hasModule: (m: ModuleKey) => boolean;
 }
 
-export const TelephonyContext = createContext<Ctx | null>(null);
+const TelephonyContext = createContext<Ctx | null>(null);
 const SESSION_KEY = "flexi.session";
 const THEME_KEY = "flexi.theme";
 const wait = (ms = 620) => new Promise((r) => setTimeout(r, ms));
@@ -252,13 +250,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     void authApi.logout().catch(() => {});
   }, []);
 
-  const impersonate = useCallback((userId: string) => {
-    const found = MOCK_USERS.find((u) => u.id === userId) ?? null;
-    if (found) localStorage.setItem(SESSION_KEY, found.id);
-    setUser(found);
-    return found;
-  }, []);
-
   const visibleAccounts = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") return accounts;
@@ -275,10 +266,8 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     hydrated,
     user,
-    users: MOCK_USERS,
     signIn,
     signOut,
-    impersonate,
     theme,
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     accounts,

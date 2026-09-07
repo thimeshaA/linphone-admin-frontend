@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PageHeader, EmptyState } from "./primitives";
+import type { ModuleKey } from "@/lib/telephony/types";
 
 export function ComingSoon({
   module,
@@ -9,7 +10,7 @@ export function ComingSoon({
   icon,
   bullets,
 }: {
-  module?: "sip" | "esim";
+  module?: ModuleKey;
   eyebrow: string;
   title: string;
   description: string;

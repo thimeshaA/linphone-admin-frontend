@@ -11,9 +11,9 @@ import {
 } from "lucide-react";
 
 export type Accent = "success" | "sip";
-export type Group = "platform" | "workspaces" | "tools";
+type Group = "platform" | "workspaces" | "tools";
 
-export type SecondaryLeaf = {
+type SecondaryLeaf = {
   kind: "link";
   id: string;
   label: string;
@@ -22,7 +22,7 @@ export type SecondaryLeaf = {
   /** Platform-management concept nested in the workspace — admin only. */
   adminOnly?: boolean;
 };
-export type SecondarySection = { kind: "section"; label: string };
+type SecondarySection = { kind: "section"; label: string };
 export type SecondaryItem = SecondaryLeaf | SecondarySection;
 
 export type PrimaryArea = {

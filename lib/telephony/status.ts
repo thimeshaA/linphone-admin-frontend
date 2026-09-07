@@ -1,6 +1,6 @@
 import type { AccountStatus, Reseller, SipAccount } from "./types";
 
-export const EXPIRING_WINDOW_DAYS = 30;
+const EXPIRING_WINDOW_DAYS = 30;
 
 export function daysUntil(iso: string) {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);

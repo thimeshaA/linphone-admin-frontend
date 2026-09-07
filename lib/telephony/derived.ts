@@ -4,7 +4,7 @@ import type { ModuleKey, Reseller, SipAccount } from "./types";
 /**
  * "End users" scoped to a module = the identities held by that module's
  * accounts. Today only SIP has a real account entity, so this is a thin
- * wrapper — it's the seam where an EsimProfile holder list would plug in.
+ * wrapper — it's the seam where a second module's holder list would plug in.
  */
 export function getEndUsers(
   accounts: SipAccount[],

@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 /**
  * Mobile-only counterpart to `<SecondaryColumn>` — a hamburger trigger in
  * the mobile top bar plus a left-edge drawer, shown only while inside a
- * workspace that actually has children to navigate (SIP/eSIM today). Reuses
+ * workspace that actually has children to navigate (SIP today). Reuses
  * `PRIMARY_AREAS` and the same `visibleSecondaryItems` role filter desktop
  * uses, so the item set (and admin-only pruning) never drifts from desktop.
  *

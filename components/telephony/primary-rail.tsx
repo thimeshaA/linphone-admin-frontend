@@ -7,7 +7,6 @@ import { hasPermission, permissionsFor } from "@/lib/telephony/permissions";
 import { useTelephony } from "@/contexts/telephony-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
-import { RoleSwitcher } from "./role-switcher";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 
@@ -95,7 +94,6 @@ export function PrimaryRail({
 
       <div className="flex flex-col items-center gap-2 border-t border-sidebar-border pt-4">
         <UserMenu />
-        <RoleSwitcher compact />
         <ThemeToggle iconOnly />
       </div>
     </nav>

@@ -70,8 +70,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           hoveredAreaId={hoveredAreaId}
           onHoverArea={setHoveredAreaId}
         />
-        {/* Resting state shows the workspace you're actually in (SIP/eSIM
-            stay open without hovering); hovering another icon previews it. */}
+        {/* Resting state shows the workspace you're actually in (SIP stays
+            open without hovering); hovering another icon previews it. */}
         <SecondaryColumn areaId={hoveredAreaId ?? areaId} />
       </div>
 

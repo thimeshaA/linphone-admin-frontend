@@ -108,7 +108,7 @@ export function CreateResellerDialog({
         v ? onOpenChange(v) : (reset(), onOpenChange(false))
       }
     >
-      <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-[20px] sm:max-w-lg">
+      <DialogContent className="rounded-[20px] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
             Add a reseller

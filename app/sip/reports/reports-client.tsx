@@ -1,5 +1,6 @@
 "use client";
 
+import { PhoneCall } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
 import { EmptyState } from "@/components/telephony/primitives";
 import { ReportGenerator } from "@/components/telephony/report-generator";
@@ -40,6 +41,13 @@ function SipReportsPage() {
       }
       filenamePrefix="account-report"
       generate={reportsApi.accounts}
+      icon={<PhoneCall aria-hidden="true" className="size-6" />}
+      highlights={[
+        "New SIP accounts provisioned this period",
+        "Renewals and upcoming expiries",
+        "Disabled and re-enabled accounts",
+        "Reassignments between resellers",
+      ]}
     />
   );
 }
