@@ -17,10 +17,10 @@ import { useTelephony } from "@/contexts/telephony-context";
 import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 
-// Matches the rule already enforced on the reset-password form — see
-// app/reset-password/reset-password-client.tsx. No stronger rule exists
-// anywhere else in the app, so this is the one to stay consistent with.
-const MIN_PASSWORD_LENGTH = 8;
+// Matches the backend's isValidPassword minimum (utils/validators.js on the
+// backend) — this form posts to the same change-password endpoint that
+// enforces it server-side.
+const MIN_PASSWORD_LENGTH = 10;
 
 const inputClass =
   "h-11 w-full rounded-xl bg-background pr-11 pl-4 text-sm outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring";

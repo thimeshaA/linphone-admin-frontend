@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { activeAreaId, PrimaryRail } from "./primary-rail";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MobileSecondaryNav } from "./mobile-secondary-nav";
+import { NotificationBell } from "./notification-bell";
 import { SecondaryColumn } from "./secondary-column";
 import { ThemeToggle } from "./theme-toggle";
 import { Logo } from "./logo";
@@ -81,7 +82,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <MobileSecondaryNav areaId={areaId} />
           <Brand compact />
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-1.5">
+          <NotificationBell />
+          <ThemeToggle />
+        </div>
       </div>
 
       <main

@@ -7,6 +7,7 @@ import { hasPermission, permissionsFor } from "@/lib/telephony/permissions";
 import { useTelephony } from "@/contexts/telephony-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
+import { NotificationBell } from "./notification-bell";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 
@@ -93,6 +94,7 @@ export function PrimaryRail({
       </ul>
 
       <div className="flex flex-col items-center gap-2 border-t border-sidebar-border pt-4">
+        <NotificationBell side="right" align="start" />
         <UserMenu />
         <ThemeToggle iconOnly />
       </div>

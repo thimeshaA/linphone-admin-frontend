@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   KeyRound,
@@ -10,9 +11,10 @@ import {
   Search,
   SlidersHorizontal,
   Users,
+  Wallet as WalletIcon,
 } from "lucide-react";
 import { EmptyState, PageHeader, StatBlock } from "./primitives";
-import { StatusPill } from "./status-pill";
+import { MetaTag, StatusPill, WalletStatusPill } from "./status-pill";
 import {
   CreateResellerDialog,
   DisableResellerDialog,
@@ -28,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTelephony } from "@/contexts/telephony-context";
+import { useWalletSummaries } from "@/hooks/use-wallet-summaries";
 import { formatDate, resellerStatus } from "@/lib/telephony/status";
 import type { AccountStatus, ModuleKey, Reseller } from "@/lib/telephony/types";
 import { cn } from "@/lib/utils";
@@ -59,6 +62,10 @@ function SipResellersPanel() {
   const [createOpen, setCreateOpen] = useState(false);
   const [resetting, setResetting] = useState<Reseller | null>(null);
   const [toggling, setToggling] = useState<Reseller | null>(null);
+  const { summaries: walletSummaries } = useWalletSummaries(
+    resellers,
+    user?.role === "admin",
+  );
 
   if (user?.role !== "admin") {
     return (
@@ -71,6 +78,14 @@ function SipResellersPanel() {
 
   const accountCountFor = (resellerId: string) =>
     accounts.filter((a) => a.createdById === resellerId).length;
+
+  function walletCellFor(resellerId: string) {
+    const summary = walletSummaries[resellerId];
+    if (summary === undefined)
+      return <span className="text-muted-foreground">—</span>;
+    if (summary === null) return <MetaTag>No wallet</MetaTag>;
+    return <WalletStatusPill owedAccounts={summary.owedAccounts} />;
+  }
 
   const rows = resellers.filter((r) => {
     const q = query.trim().toLowerCase();
@@ -298,6 +313,7 @@ function SipResellersPanel() {
                       "Expiry",
                       "Created",
                       "Accounts created",
+                      "Wallet",
                     ].map((h) => (
                       <th
                         key={h}
@@ -342,6 +358,7 @@ function SipResellersPanel() {
                       <td className="px-5 py-4 tabular-nums">
                         {accountCountFor(r.id)}
                       </td>
+                      <td className="px-5 py-4">{walletCellFor(r.id)}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <RowMenu
@@ -390,6 +407,10 @@ function SipResellersPanel() {
                         <dd className="mt-1 text-sm tabular-nums">
                           {accountCountFor(r.id)}
                         </dd>
+                      </div>
+                      <div>
+                        <dt className="label-meta">Wallet</dt>
+                        <dd className="mt-1 text-sm">{walletCellFor(r.id)}</dd>
                       </div>
                     </dl>
                     <RowMenu
@@ -461,6 +482,13 @@ function RowMenu({
         <MoreHorizontal aria-hidden="true" className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem asChild className="gap-2">
+          <Link href={`/sip/reseller-wallets/${reseller.id}`}>
+            <WalletIcon aria-hidden="true" className="size-4" />
+            View wallet
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onReset} className="gap-2">
           <KeyRound aria-hidden="true" className="size-4" />
           Reset password

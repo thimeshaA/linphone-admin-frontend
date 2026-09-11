@@ -8,7 +8,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { Menu, X } from "lucide-react";
 import { PRIMARY_AREAS } from "@/lib/telephony/nav-config";
 import { useTelephony } from "@/contexts/telephony-context";
-import { visibleSecondaryItems } from "./secondary-column";
+import {
+  isSecondaryItemActive,
+  visibleSecondaryItems,
+} from "./secondary-column";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,7 +45,11 @@ export function MobileSecondaryNav({ areaId }: { areaId: string | null }) {
   if (!area || area.children.length === 0) return null;
 
   const isAdmin = user?.role === "admin";
-  const items = visibleSecondaryItems(area.children, isAdmin);
+  const items = visibleSecondaryItems(
+    area.children,
+    isAdmin,
+    user?.role === "reseller",
+  );
 
   return (
     <>
@@ -116,11 +123,13 @@ export function MobileSecondaryNav({ areaId }: { areaId: string | null }) {
                             href={item.route}
                             onClick={() => setOpen(false)}
                             aria-current={
-                              item.route === pathname ? "page" : undefined
+                              isSecondaryItemActive(item.route, pathname)
+                                ? "page"
+                                : undefined
                             }
                             className={cn(
                               "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors",
-                              item.route === pathname
+                              isSecondaryItemActive(item.route, pathname)
                                 ? "glass-module text-module-line"
                                 : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
                             )}

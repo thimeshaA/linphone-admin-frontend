@@ -42,28 +42,60 @@ export interface SipAccount {
   notes?: string | undefined;
 }
 
-export type RequestKind = "reseller";
+export type WalletLedgerType =
+  "initial_credit" | "admin_topup" | "renewal_deduction" | "payment_received";
 
-export type AuditAction =
-  | "account.created"
-  | "account.renewed"
-  | "account.disabled"
-  | "account.enabled"
-  | "account.deleted"
-  | "account.reassigned"
-  | "reseller.created"
-  | "reseller.renewed"
-  | "reseller.password_reset"
-  | "reseller.disabled"
-  | "reseller.enabled";
-
-export interface AuditEvent {
+export interface WalletLedgerEntry {
   id: string;
-  module: ModuleKey;
-  action: AuditAction;
-  actorId: string;
-  actorName: string;
-  target: string;
-  detail?: string | undefined;
-  at: string;
+  type: WalletLedgerType;
+  amountUsd: number;
+  relatedAccountId: string | null;
+  invoiced: boolean;
+  invoiceId: string | null;
+  createdBy: string | null;
+  note: string | null;
+  createdAt: string;
 }
+
+export interface Wallet {
+  resellerId: string;
+  balanceUsd: number;
+  owedAccounts: number;
+  updatedAt: string;
+  ledger: WalletLedgerEntry[];
+  pagination: { page: number; limit: number; total: number };
+}
+
+export type InvoicePeriodType = "monthly" | "annual";
+
+// Period-based, generated from every not-yet-invoiced renewal deduction in
+// the window — one invoice per reseller per period (DB-enforced). No
+// payment/status tracking exists here at all; `sentAt` (nullable) is the
+// only state an invoice has. Payments are handled entirely through wallet
+// top-ups (Phase 6), not through anything invoice-related. Line items live
+// only inside the generated PDF, never in this row.
+export interface Invoice {
+  id: string;
+  resellerId: string;
+  periodType: InvoicePeriodType;
+  periodValue: string; // "YYYY-MM" for monthly, "YYYY" for annual
+  totalAmountUsd: number;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+// `type` is a free-form VARCHAR(50) on the backend (new types can be added
+// there without a schema change), so this stays a plain string rather than a
+// closed union — unknown types are expected and rendered with a fallback.
+export interface AppNotification {
+  id: string;
+  recipientId: string;
+  type: string;
+  title: string;
+  message: string;
+  payload: Record<string, unknown> | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export type RequestKind = "reseller";

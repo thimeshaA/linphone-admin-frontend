@@ -5,9 +5,10 @@ import {
   CreditCard,
   LayoutDashboard,
   PhoneCall,
-  ScrollText,
+  Receipt,
   Settings as SettingsIcon,
   Users,
+  Wallet,
 } from "lucide-react";
 
 export type Accent = "success" | "sip";
@@ -21,8 +22,17 @@ type SecondaryLeaf = {
   icon?: LucideIcon;
   /** Platform-management concept nested in the workspace — admin only. */
   adminOnly?: boolean;
+  /** A reseller's own concept (e.g. their wallet) — hidden from admins. */
+  resellerOnly?: boolean;
 };
-type SecondarySection = { kind: "section"; label: string };
+type SecondarySection = {
+  kind: "section";
+  label: string;
+  /** The section concept itself is admin-only (e.g. "Reseller Management")
+   * — suppressed entirely for other roles, rather than opportunistically
+   * appearing based on which of its children happen to be visible to them. */
+  adminOnly?: boolean;
+};
 export type SecondaryItem = SecondaryLeaf | SecondarySection;
 
 export type PrimaryArea = {
@@ -73,7 +83,15 @@ export const PRIMARY_AREAS: PrimaryArea[] = [
         route: "/sip/dashboard",
         icon: LayoutDashboard,
       },
-      { kind: "section", label: "Reseller Management" },
+      {
+        kind: "link",
+        id: "wallet",
+        label: "Wallet",
+        route: "/sip/wallet",
+        icon: Wallet,
+        resellerOnly: true,
+      },
+      { kind: "section", label: "Reseller Management", adminOnly: true },
       {
         kind: "link",
         id: "resellers",
@@ -92,11 +110,24 @@ export const PRIMARY_AREAS: PrimaryArea[] = [
       },
       {
         kind: "link",
-        id: "reseller-audit-logs",
-        label: "Audit Logs",
-        route: "/sip/reseller-audit-logs",
-        icon: ScrollText,
+        id: "reseller-wallets",
+        label: "Wallets",
+        route: "/sip/reseller-wallets",
+        icon: Wallet,
         adminOnly: true,
+      },
+      {
+        kind: "link",
+        id: "reseller-invoices",
+        label: "Invoices",
+        route: "/sip/reseller-invoices",
+        icon: Receipt,
+        // Not admin-only: a reseller sees their own (sent) invoices here
+        // too — generation/send actions stay admin-only inside the page
+        // itself. Physically stays inside this section (for ordering,
+        // admin's view groups it here between Wallets and Reports) — the
+        // section header itself is what's admin-only, so a reseller sees
+        // this item unheaded instead.
       },
       {
         kind: "link",
@@ -120,14 +151,6 @@ export const PRIMARY_AREAS: PrimaryArea[] = [
         label: "Subscriptions",
         route: "/sip/subscriptions",
         icon: CreditCard,
-      },
-      {
-        kind: "link",
-        id: "account-audit-logs",
-        label: "Audit Logs",
-        route: "/sip/audit-logs",
-        icon: ScrollText,
-        adminOnly: true,
       },
       {
         kind: "link",

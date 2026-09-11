@@ -11,8 +11,7 @@ import {
 } from "react";
 import { MOCK_ACCOUNTS, MOCK_USERS } from "@/lib/telephony/mock-data";
 import type {
-  AuditAction,
-  AuditEvent,
+  AppNotification,
   MockUser,
   ModuleKey,
   Reseller,
@@ -22,6 +21,7 @@ import { ApiError } from "@/lib/api/client";
 import { authApi, type BackendUser } from "@/lib/api/auth";
 import { accountsApi } from "@/lib/api/accounts";
 import { resellersApi } from "@/lib/api/resellers";
+import { notificationsApi } from "@/lib/api/notifications";
 import { requestsApi, type SubmitRequestInput } from "@/lib/api/requests";
 import {
   accountRequestsApi,
@@ -40,7 +40,6 @@ interface Ctx {
   accounts: SipAccount[];
   accountsLoading: boolean;
   visibleAccounts: SipAccount[];
-  auditEvents: AuditEvent[];
   createAccount: (input: {
     sipId: string;
     email: string;
@@ -59,6 +58,7 @@ interface Ctx {
     email: string;
     password: string;
     expiresAt: string;
+    initialCredit?: number | undefined;
   }) => Promise<Reseller>;
   renewReseller: (id: string, expiresAt: string) => Promise<void>;
   setResellerStatus: (
@@ -66,6 +66,11 @@ interface Ctx {
     status: "active" | "disabled",
   ) => Promise<void>;
   resetResellerPassword: (id: string, newPassword: string) => Promise<void>;
+  notifications: AppNotification[];
+  notificationsLoading: boolean;
+  unreadCount: number;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   submitRequest: (input: SubmitRequestInput) => Promise<void>;
   submitAccountRequests: (entries: AccountRequestEntry[]) => Promise<void>;
   hasModule: (m: ModuleKey) => boolean;
@@ -100,31 +105,9 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [resellers, setResellers] = useState<Reseller[]>([]);
   const [resellersLoading, setResellersLoading] = useState(false);
-  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
-
-  const logEvent = useCallback(
-    (
-      module: ModuleKey,
-      action: AuditAction,
-      target: string,
-      detail?: string,
-    ) => {
-      setAuditEvents((prev) => [
-        {
-          id: `evt-${Math.random().toString(36).slice(2, 9)}`,
-          module,
-          action,
-          actorId: user?.id ?? "system",
-          actorName: user?.name ?? "System",
-          target,
-          detail,
-          at: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-    },
-    [user],
-  );
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
@@ -204,6 +187,43 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
+  // Real notifications only exist for admin/reseller sessions. No push
+  // mechanism on the backend (pure REST) — poll for new ones instead. The
+  // unread count is re-derived from a dedicated `unread=true&limit=1` call
+  // rather than counting locally, since the recent list below is capped at
+  // 20 and would undercount once there are more unread items than that.
+  useEffect(() => {
+    if (!user || user.role === "enduser") {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      setNotificationsLoading(true);
+      try {
+        const [recent, unread] = await Promise.all([
+          notificationsApi.list({ limit: 20 }),
+          notificationsApi.list({ unread: true, limit: 1 }),
+        ]);
+        if (cancelled) return;
+        setNotifications(recent.notifications);
+        setUnreadCount(unread.pagination.total);
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) setUser(null);
+      } finally {
+        if (!cancelled) setNotificationsLoading(false);
+      }
+    }
+    load();
+    const interval = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user]);
+
   const signIn = useCallback(async (identifier: string, password: string) => {
     const mockMatch = MOCK_USERS.find(
       (u) =>
@@ -273,7 +293,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     accounts,
     accountsLoading,
     visibleAccounts,
-    auditEvents,
     hasModule: (m) =>
       !!user && (user.role === "admin" || user.modules.includes(m)),
     createAccount: async (input) => {
@@ -288,7 +307,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
           resellerId: input.creatorId,
         });
         setAccounts((prev) => [created, ...prev]);
-        logEvent("sip", "account.created", created.sipId);
         return created;
       } catch (err) {
         return handleApiError(err);
@@ -301,12 +319,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
           new Date(expiresAt).toISOString(),
         );
         setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
-        logEvent(
-          "sip",
-          "account.renewed",
-          updated.sipId,
-          `New expiry ${new Date(expiresAt).toLocaleDateString("en-GB")}`,
-        );
       } catch (err) {
         handleApiError(err);
       }
@@ -321,11 +333,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
                 new Date().toISOString(),
             );
         setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
-        logEvent(
-          "sip",
-          disabled ? "account.disabled" : "account.enabled",
-          updated.sipId,
-        );
       } catch (err) {
         handleApiError(err);
       }
@@ -334,7 +341,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       try {
         const updated = await accountsApi.reassign(id, creatorId);
         setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
-        logEvent("sip", "account.reassigned", updated.sipId);
       } catch (err) {
         handleApiError(err);
       }
@@ -342,9 +348,7 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     deleteAccount: async (id) => {
       try {
         await accountsApi.remove(id);
-        const target = accounts.find((a) => a.id === id);
         setAccounts((prev) => prev.filter((a) => a.id !== id));
-        logEvent("sip", "account.deleted", target?.sipId ?? id);
       } catch (err) {
         handleApiError(err);
       }
@@ -355,7 +359,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       try {
         const created = await resellersApi.create(input);
         setResellers((prev) => [created, ...prev]);
-        logEvent("sip", "reseller.created", created.username);
         return created;
       } catch (err) {
         return handleApiError(err);
@@ -365,12 +368,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       try {
         const updated = await resellersApi.renew(id, expiresAt);
         setResellers((prev) => prev.map((r) => (r.id === id ? updated : r)));
-        logEvent(
-          "sip",
-          "reseller.renewed",
-          updated.username,
-          `New expiry ${new Date(expiresAt).toLocaleDateString("en-GB")}`,
-        );
       } catch (err) {
         handleApiError(err);
       }
@@ -379,11 +376,6 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       try {
         const updated = await resellersApi.setStatus(id, status);
         setResellers((prev) => prev.map((r) => (r.id === id ? updated : r)));
-        logEvent(
-          "sip",
-          status === "disabled" ? "reseller.disabled" : "reseller.enabled",
-          updated.username,
-        );
       } catch (err) {
         handleApiError(err);
       }
@@ -391,8 +383,37 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     resetResellerPassword: async (id, newPassword) => {
       try {
         await resellersApi.resetPassword(id, newPassword);
-        const target = resellers.find((r) => r.id === id);
-        logEvent("sip", "reseller.password_reset", target?.username ?? id);
+      } catch (err) {
+        handleApiError(err);
+      }
+    },
+    notifications,
+    notificationsLoading,
+    unreadCount,
+    markNotificationRead: async (id) => {
+      try {
+        const updated = await notificationsApi.markRead(id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? updated : n)),
+        );
+        const unread = await notificationsApi.list({
+          unread: true,
+          limit: 1,
+        });
+        setUnreadCount(unread.pagination.total);
+      } catch (err) {
+        handleApiError(err);
+      }
+    },
+    markAllNotificationsRead: async () => {
+      try {
+        await notificationsApi.markAllRead();
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.readAt ? n : { ...n, readAt: new Date().toISOString() },
+          ),
+        );
+        setUnreadCount(0);
       } catch (err) {
         handleApiError(err);
       }

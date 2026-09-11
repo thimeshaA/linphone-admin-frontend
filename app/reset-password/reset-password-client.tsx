@@ -15,7 +15,10 @@ import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { BrandMark } from "@/components/telephony/brand-mark";
 
-const MIN_LENGTH = 8;
+// Matches the backend's isValidPassword minimum (utils/validators.js on the
+// backend) — this form posts to the same token-based reset endpoint that
+// enforces it server-side.
+const MIN_LENGTH = 10;
 
 const inputClass =
   "h-[52px] w-full rounded-[14px] border border-border bg-white/[0.03] pr-12 pl-4 text-sm text-foreground transition-colors outline-none focus-visible:border-primary/70 focus-visible:ring-4 focus-visible:ring-primary/10";

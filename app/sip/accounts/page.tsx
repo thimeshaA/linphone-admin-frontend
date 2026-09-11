@@ -4,7 +4,7 @@ import { SipAccountsClient } from "./accounts-client";
 export const metadata: Metadata = {
   title: "SIP accounts — Admin Control",
   description:
-    "Operational workspace for SIP identities: provision, renew, disable and audit accounts on the Flexisip cluster.",
+    "Operational workspace for SIP identities: provision, renew and disable accounts on the Flexisip cluster.",
   openGraph: {
     title: "SIP accounts — Admin Control",
     description:

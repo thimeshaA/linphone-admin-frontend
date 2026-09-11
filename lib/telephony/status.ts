@@ -47,3 +47,29 @@ export function formatDate(iso: string) {
 export function toDateInput(iso: string) {
   return new Date(iso).toISOString().slice(0, 10);
 }
+
+const RELATIVE_UNITS: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] =
+  [
+    { unit: "year", seconds: 31536000 },
+    { unit: "month", seconds: 2592000 },
+    { unit: "week", seconds: 604800 },
+    { unit: "day", seconds: 86400 },
+    { unit: "hour", seconds: 3600 },
+    { unit: "minute", seconds: 60 },
+  ];
+const relativeTimeFormatter = new Intl.RelativeTimeFormat("en", {
+  numeric: "auto",
+});
+
+export function formatRelativeTime(iso: string) {
+  const diffSeconds = (new Date(iso).getTime() - Date.now()) / 1000;
+  for (const { unit, seconds } of RELATIVE_UNITS) {
+    if (Math.abs(diffSeconds) >= seconds) {
+      return relativeTimeFormatter.format(
+        Math.round(diffSeconds / seconds),
+        unit,
+      );
+    }
+  }
+  return relativeTimeFormatter.format(Math.round(diffSeconds), "second");
+}

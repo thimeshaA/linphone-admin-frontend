@@ -1,41 +1,13 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { AlertTriangle, CheckCircle2, Download, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "./primitives";
+import { periodLabel, PeriodSelect } from "./period-select";
 import { ApiError } from "@/lib/api/client";
 import type { ReportPeriod } from "@/lib/api/reports";
-import { cn } from "@/lib/utils";
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const selectClass =
-  "h-11 w-full rounded-xl bg-background px-4 text-sm outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring";
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+import { downloadBlob } from "@/lib/utils";
 
 /**
  * Shared by the account- and reseller-reports pages — only the eyebrow copy,
@@ -66,35 +38,27 @@ export function ReportGenerator({
   highlights: string[];
 }) {
   const now = new Date();
-  const [periodType, setPeriodType] = useState<"monthly" | "annual">("monthly");
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [period, setPeriod] = useState<ReportPeriod>({
+    type: "monthly",
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  });
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
-
-  const years = Array.from({ length: 8 }, (_, i) => now.getFullYear() - i);
-  const periodLabel =
-    periodType === "monthly"
-      ? `${MONTH_NAMES[month - 1]} ${year}`
-      : `Full year ${year}`;
 
   async function handleGenerate() {
     setState("loading");
     setError("");
     try {
-      const period: ReportPeriod =
-        periodType === "monthly"
-          ? { type: "monthly", year, month }
-          : { type: "annual", year };
       const { blob, filename } = await generate(period);
       const label =
-        periodType === "monthly"
-          ? `${year}-${String(month).padStart(2, "0")}`
-          : String(year);
+        period.type === "monthly"
+          ? `${period.year}-${String(period.month).padStart(2, "0")}`
+          : String(period.year);
       downloadBlob(blob, filename ?? `${filenamePrefix}-${label}.pdf`);
       setState("idle");
       toast.success("Report downloaded", {
-        description: `${periodLabel} — saved to your downloads.`,
+        description: `${periodLabel(period)} — saved to your downloads.`,
       });
     } catch (err) {
       setError(
@@ -152,77 +116,7 @@ export function ReportGenerator({
           aria-label="Generate report"
           className="glass-strong glass-hairline space-y-6 rounded-[20px] p-6 lg:sticky lg:top-6"
         >
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Period</p>
-            <div
-              role="group"
-              aria-label="Period type"
-              className="inline-flex rounded-xl bg-secondary p-1"
-            >
-              {(["monthly", "annual"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  aria-pressed={periodType === t}
-                  onClick={() => setPeriodType(t)}
-                  className={cn(
-                    "h-9 rounded-lg px-4 text-sm font-medium capitalize transition-colors",
-                    periodType === t
-                      ? "module-bg"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {periodType === "monthly" ? (
-              <div className="space-y-1.5">
-                <label htmlFor="report-month" className="text-sm font-medium">
-                  Month
-                </label>
-                <select
-                  id="report-month"
-                  className={selectClass}
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                >
-                  {MONTH_NAMES.map((m, i) => (
-                    <option key={m} value={i + 1}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-            <div className="space-y-1.5">
-              <label htmlFor="report-year" className="text-sm font-medium">
-                Year
-              </label>
-              <select
-                id="report-year"
-                className={selectClass}
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-              >
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="module-tint flex items-center justify-between rounded-xl px-4 py-3 text-sm">
-            <span className="text-muted-foreground">Covering</span>
-            <span className="font-semibold text-module-strong">
-              {periodLabel}
-            </span>
-          </div>
+          <PeriodSelect value={period} onChange={setPeriod} />
 
           {state === "error" ? (
             <p

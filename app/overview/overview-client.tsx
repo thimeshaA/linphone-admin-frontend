@@ -50,7 +50,7 @@ function OverviewPage() {
               to="/sip/dashboard"
               icon={<PhoneCall aria-hidden="true" className="size-5" />}
               title="SIP Account Panel"
-              description="Provision, renew, disable and audit SIP identities on the Flexisip cluster."
+              description="Provision, renew and disable SIP identities on the Flexisip cluster."
               stat={sipCount}
               statLabel={
                 user?.role === "admin"

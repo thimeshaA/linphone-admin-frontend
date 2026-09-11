@@ -14,7 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 export const metadata: Metadata = {
   title: "Admin Control — SIP operations",
   description:
-    "Operations console for provisioning, renewing and auditing SIP identities on Flexisip infrastructure.",
+    "Operations console for provisioning, renewing and managing SIP identities on Flexisip infrastructure.",
   // app/favicon.ico is picked up automatically via Next's file convention —
   // this only adds the larger PNG variant on top, for Apple touch icons/etc.
   icons: {

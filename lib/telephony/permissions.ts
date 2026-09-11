@@ -16,7 +16,11 @@ export function permissionsFor(user: MockUser | null): Set<string> {
       "sip.*",
     ]);
   }
-  const perms = new Set<string>(["platform.overview", "platform.settings"]);
+  const perms = new Set<string>([
+    "platform.overview",
+    "platform.notifications",
+    "platform.settings",
+  ]);
   for (const m of user.modules) perms.add(`${m}.*`);
   return perms;
 }

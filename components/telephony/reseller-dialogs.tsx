@@ -12,9 +12,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTelephony } from "@/contexts/telephony-context";
+import { ApiError } from "@/lib/api/client";
 import { formatDate, toDateInput } from "@/lib/telephony/status";
 import { addPeriods } from "@/lib/telephony/period";
 import type { Reseller } from "@/lib/telephony/types";
+import { cn } from "@/lib/utils";
 import { PeriodPicker } from "./period-picker";
 
 const inputClass =
@@ -50,6 +52,7 @@ export function CreateResellerDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [periods, setPeriods] = useState(1); // 1 x 6 months = the base period
+  const [initialCredit, setInitialCredit] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [serverError, setServerError] = useState("");
@@ -59,6 +62,7 @@ export function CreateResellerDialog({
     setEmail("");
     setPassword("");
     setPeriods(1);
+    setInitialCredit("");
     setErrors({});
     setState("idle");
     setServerError("");
@@ -74,6 +78,9 @@ export function CreateResellerDialog({
       next["email"] = "Enter a valid email address.";
     if (!password.trim())
       next["password"] = "A password is required for the reseller login.";
+    const credit = initialCredit.trim() ? Number(initialCredit) : 0;
+    if (initialCredit.trim() && (!Number.isFinite(credit) || credit < 0))
+      next["initialCredit"] = "Enter a non-negative amount, or leave it blank.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -87,6 +94,7 @@ export function CreateResellerDialog({
         email: email.trim(),
         password,
         expiresAt,
+        initialCredit: credit > 0 ? credit : undefined,
       });
       toast.success(`${created.username} added as a reseller`, {
         description: `Active until ${formatDate(created.expiresAt ?? expiresAt)}.`,
@@ -181,6 +189,39 @@ export function CreateResellerDialog({
             periods={periods}
             onChange={setPeriods}
           />
+
+          <div className="space-y-2">
+            <Label htmlFor="rc-credit">Initial credit (optional)</Label>
+            <div className="relative">
+              <span
+                aria-hidden="true"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+              >
+                $
+              </span>
+              <input
+                id="rc-credit"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                className={cn(inputClass, "pl-7")}
+                value={initialCredit}
+                onChange={(e) => setInitialCredit(e.target.value)}
+                placeholder="0.00"
+                aria-invalid={!!errors["initialCredit"]}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Seeds the reseller&apos;s wallet balance so it&apos;s ready to
+              cover account renewals from day one.
+            </p>
+            {errors["initialCredit"] ? (
+              <p role="alert" className="text-xs text-negative-foreground">
+                {errors["initialCredit"]}
+              </p>
+            ) : null}
+          </div>
 
           {state === "error" ? (
             <p
@@ -320,6 +361,10 @@ export function RenewResellerDialog({
   );
 }
 
+// Matches the backend's isValidPassword minimum (utils/validators.js) — the
+// same rule the self-service change-password form enforces.
+const MIN_PASSWORD_LENGTH = 10;
+
 export function ResetResellerPasswordDialog({
   reseller,
   onClose,
@@ -329,31 +374,40 @@ export function ResetResellerPasswordDialog({
 }) {
   const { resetResellerPassword } = useTelephony();
   const [newPassword, setNewPassword] = useState("");
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
-  function handleClose() {
+  function reset() {
     setNewPassword("");
-    setError("");
+    setErrors({});
+  }
+
+  function handleClose() {
+    reset();
     onClose();
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!reseller) return;
-    if (!newPassword.trim()) {
-      setError("Enter a new password.");
-      return;
-    }
-    setError("");
+    const next: Record<string, string> = {};
+    if (newPassword.length < MIN_PASSWORD_LENGTH)
+      next["newPassword"] = `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
+    setErrors(next);
+    if (Object.keys(next).length) return;
+
     setLoading(true);
     try {
       await resetResellerPassword(reseller.id, newPassword);
       toast.success(`Password reset for ${reseller.username}`);
-      handleClose();
-    } catch {
+      reset();
+      onClose();
+    } catch (err) {
       toast.error("Reset failed", {
-        description: "The backend rejected the request. Try again.",
+        description:
+          err instanceof ApiError
+            ? err.message
+            : "The backend rejected the request. Try again.",
       });
     } finally {
       setLoading(false);
@@ -394,11 +448,11 @@ export function ResetResellerPasswordDialog({
               className={inputClass}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              aria-invalid={!!error}
+              aria-invalid={!!errors["newPassword"]}
             />
-            {error ? (
+            {errors["newPassword"] ? (
               <p role="alert" className="text-xs text-negative-foreground">
-                {error}
+                {errors["newPassword"]}
               </p>
             ) : null}
           </div>

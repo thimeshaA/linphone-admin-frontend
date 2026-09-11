@@ -33,6 +33,7 @@ export const resellersApi = {
     email: string;
     password: string;
     expiresAt: string;
+    initialCredit?: number | undefined;
   }) =>
     apiFetch<BackendAdmin>("/admins", {
       method: "POST",
@@ -41,6 +42,7 @@ export const resellersApi = {
         email: input.email,
         password: input.password,
         expires_at: toMySqlDatetime(input.expiresAt),
+        initialCredit: input.initialCredit || undefined,
       }),
     }).then(mapReseller),
   renew: (id: string, expiresAt: string) =>
@@ -54,6 +56,11 @@ export const resellersApi = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }).then(mapReseller),
+  // Admin-only override for a reseller who's lost access — no step-up
+  // re-confirmation of the admin's own password; an admin session already
+  // carries this authority, same as disable/renew/etc. Self-service password
+  // changes (an account changing its own) go through authApi.changePassword
+  // instead, which does require the current password.
   resetPassword: (id: string, newPassword: string) =>
     apiFetch<{ message: string }>(`/admins/${id}/reset-password`, {
       method: "PATCH",
