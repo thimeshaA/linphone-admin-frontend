@@ -17,7 +17,7 @@ const LEDGER_PAGE_SIZE = 10;
  * `ResellerWalletDetailView`, reached from the Wallets list or a reseller's
  * "View wallet" row action. */
 export function WalletView() {
-  const { user, visibleAccounts } = useTelephony();
+  const { user, visibleAccounts, accountsLoading } = useTelephony();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -123,7 +123,7 @@ export function WalletView() {
             <WalletLedgerTable
               entries={wallet?.ledger ?? []}
               accounts={visibleAccounts}
-              loading={loading && !wallet}
+              loading={(loading && !wallet) || accountsLoading}
               page={wallet?.pagination.page}
               pageCount={pageCount}
               onPageChange={setPage}

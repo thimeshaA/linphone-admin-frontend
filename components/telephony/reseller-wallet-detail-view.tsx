@@ -38,7 +38,8 @@ export function ResellerWalletDetailView({
 }: {
   resellerId: string;
 }) {
-  const { user, resellers, resellersLoading, accounts } = useTelephony();
+  const { user, resellers, resellersLoading, accounts, accountsLoading } =
+    useTelephony();
   const isAdmin = user?.role === "admin";
   const reseller = resellers.find((r) => r.id === resellerId);
 
@@ -242,7 +243,7 @@ export function ResellerWalletDetailView({
             <WalletLedgerTable
               entries={wallet?.ledger ?? []}
               accounts={accounts}
-              loading={walletLoading && !wallet}
+              loading={(walletLoading && !wallet) || accountsLoading}
               page={wallet?.pagination.page}
               pageCount={pageCount}
               onPageChange={setPage}
