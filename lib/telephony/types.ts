@@ -50,6 +50,7 @@ export interface WalletLedgerEntry {
   type: WalletLedgerType;
   amountUsd: number;
   relatedAccountId: string | null;
+  accountSipId: string | null;
   invoiced: boolean;
   invoiceId: string | null;
   createdBy: string | null;

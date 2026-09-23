@@ -21,10 +21,13 @@ const TYPE_LABEL: Record<WalletLedgerType, string> = {
 
 function accountLabel(entry: WalletLedgerEntry, accounts: SipAccount[]) {
   if (!entry.relatedAccountId) return "—";
+  // The backend snapshots the sip id onto the ledger row itself, so the
+  // real account name survives a later hard-delete — prefer that over the
+  // live account list, which naturally excludes deleted accounts. Only an
+  // entry recorded before that snapshot existed, whose account is now also
+  // gone, falls back to "Deleted account".
+  if (entry.accountSipId) return entry.accountSipId;
   const account = accounts.find((a) => a.id === entry.relatedAccountId);
-  // Only reachable once the real account list has loaded (the table is kept
-  // in its loading state until then) — an entry can still land here if the
-  // account was later hard-deleted, since the backend keeps no record of it.
   return account ? account.sipId : "Deleted account";
 }
 

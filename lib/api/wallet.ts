@@ -11,6 +11,7 @@ interface BackendLedgerEntry {
   type: WalletLedgerType;
   amount_usd: number;
   related_account_id: number | null;
+  account_sip_id: string | null;
   invoiced: 0 | 1;
   invoice_id: number | null;
   created_by: number | null;
@@ -34,6 +35,7 @@ function mapLedgerEntry(e: BackendLedgerEntry): WalletLedgerEntry {
     amountUsd: e.amount_usd,
     relatedAccountId:
       e.related_account_id !== null ? String(e.related_account_id) : null,
+    accountSipId: e.account_sip_id,
     invoiced: Boolean(e.invoiced),
     invoiceId: e.invoice_id !== null ? String(e.invoice_id) : null,
     createdBy: e.created_by !== null ? String(e.created_by) : null,

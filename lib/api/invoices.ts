@@ -3,7 +3,7 @@ import type { Invoice, InvoicePeriodType } from "@/lib/telephony/types";
 
 interface BackendInvoice {
   id: number;
-  reseller_id: number;
+  reseller_id: string;
   period_type: InvoicePeriodType;
   period_value: string;
   total_amount_usd: number;
@@ -50,7 +50,7 @@ export const invoicesApi = {
     apiFetch<BackendInvoice>("/invoices", {
       method: "POST",
       body: JSON.stringify({
-        resellerId: Number(input.resellerId),
+        resellerId: input.resellerId,
         periodType: input.periodType,
         periodValue: input.periodValue,
       }),
