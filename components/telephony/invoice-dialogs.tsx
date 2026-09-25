@@ -16,6 +16,7 @@ import { invoicesApi } from "@/lib/api/invoices";
 import type { ReportPeriod } from "@/lib/api/reports";
 import type { Invoice, Reseller } from "@/lib/telephony/types";
 import { formatDate } from "@/lib/telephony/status";
+import { cn } from "@/lib/utils";
 import {
   lastDayOfPeriodValue,
   periodHasEnded,
@@ -69,6 +70,10 @@ export function InvoiceGenerator({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [sending, setSending] = useState(false);
+  const locked = invoice
+    ? !periodHasEnded(invoice.periodType, invoice.periodValue)
+    : false;
 
   async function handleGenerate() {
     setGenerating(true);
@@ -98,25 +103,98 @@ export function InvoiceGenerator({
     setError("");
   }
 
+  async function handleSend() {
+    if (!invoice) return;
+    setSending(true);
+    try {
+      const updated = await invoicesApi.send(invoice.id);
+      setInvoice(updated);
+      toast.success(`Invoice #${updated.id} sent`, {
+        description: "The reseller has been emailed a copy of the PDF.",
+      });
+    } catch (err) {
+      toast.error("Could not send the invoice", {
+        description:
+          err instanceof ApiError
+            ? err.message
+            : "The backend rejected the request. Try again.",
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div className="glass glass-hairline space-y-4 rounded-[20px] p-6">
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className="grid size-10 shrink-0 place-items-center rounded-2xl bg-neutral-pill text-muted-foreground"
-        >
-          <Receipt className="size-5" />
-        </span>
-        <div>
-          <h3 className="font-display text-lg font-bold tracking-tight">
-            {step === "period" ? "Generate invoice" : "Invoice preview"}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {step === "period"
-              ? `Choose the period to bill ${reseller.username} for — covers every renewal charge in that window not already invoiced.`
-              : `${periodLabel(period)} — review the PDF before sending.`}
-          </p>
+      <div className="lg:flex lg:items-start lg:gap-8">
+        <div className="lg:w-64 lg:shrink-0">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden="true"
+              className="grid size-10 shrink-0 place-items-center rounded-2xl bg-neutral-pill text-muted-foreground"
+            >
+              <Receipt className="size-5" />
+            </span>
+            <div>
+              <h3 className="font-display text-lg font-bold tracking-tight">
+                {step === "period" ? "Generate invoice" : "Invoice preview"}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {step === "period"
+                  ? `Choose the period to bill ${reseller.username} for - covers every renewal charge in that window not already invoiced.`
+                  : `${periodLabel(period)} — review the PDF before sending.`}
+              </p>
+            </div>
+          </div>
+
+          {step === "period" ? (
+            <button
+              type="button"
+              className={cn(primaryBtn, "mt-4 w-full")}
+              disabled={generating}
+              onClick={handleGenerate}
+            >
+              {generating ? (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+              ) : null}
+              {generating ? "Generating…" : "Generate invoice"}
+            </button>
+          ) : invoice ? (
+            <div className="mt-4 flex flex-col gap-2">
+              <button type="button" className={ghostBtn} onClick={handleReset}>
+                Choose a different period
+              </button>
+              <button
+                type="button"
+                className={cn(primaryBtn, "w-full")}
+                disabled={!!invoice.sentAt || sending || locked}
+                title={
+                  locked && !invoice.sentAt
+                    ? `Can't be sent until the period ends on ${formatDate(lastDayOfPeriodValue(invoice.periodType, invoice.periodValue).toISOString())}`
+                    : undefined
+                }
+                onClick={handleSend}
+              >
+                {sending ? (
+                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                ) : (
+                  <Mail aria-hidden="true" className="size-4" />
+                )}
+                {invoice.sentAt ? "Sent" : sending ? "Sending…" : "Send email"}
+              </button>
+            </div>
+          ) : null}
         </div>
+
+        {step === "period" ? (
+          <div className="mt-4 lg:mt-0 lg:flex-1">
+            <PeriodSelect value={period} onChange={setPeriod} />
+          </div>
+        ) : invoice ? (
+          <div className="mt-4 lg:mt-0 lg:flex-1">
+            <InvoicePreviewInline invoice={invoice} />
+          </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -127,48 +205,13 @@ export function InvoiceGenerator({
           {error}
         </p>
       ) : null}
-
-      {step === "period" ? (
-        <>
-          <PeriodSelect value={period} onChange={setPeriod} />
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              className={primaryBtn}
-              disabled={generating}
-              onClick={handleGenerate}
-            >
-              {generating ? (
-                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-              ) : null}
-              {generating ? "Generating…" : "Generate invoice"}
-            </button>
-          </div>
-        </>
-      ) : invoice ? (
-        <InvoicePreviewInline
-          invoice={invoice}
-          onUpdate={setInvoice}
-          onReset={handleReset}
-        />
-      ) : null}
     </div>
   );
 }
 
-function InvoicePreviewInline({
-  invoice,
-  onUpdate,
-  onReset,
-}: {
-  invoice: Invoice;
-  onUpdate: (updated: Invoice) => void;
-  onReset: () => void;
-}) {
+function InvoicePreviewInline({ invoice }: { invoice: Invoice }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState("");
-  const [sending, setSending] = useState(false);
   const locked = !periodHasEnded(invoice.periodType, invoice.periodValue);
 
   useEffect(() => {
@@ -193,26 +236,6 @@ function InvoicePreviewInline({
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [invoice.id]);
-
-  async function handleSend() {
-    setSending(true);
-    try {
-      const updated = await invoicesApi.send(invoice.id);
-      onUpdate(updated);
-      toast.success(`Invoice #${invoice.id} sent`, {
-        description: "The reseller has been emailed a copy of the PDF.",
-      });
-    } catch (err) {
-      toast.error("Could not send the invoice", {
-        description:
-          err instanceof ApiError
-            ? err.message
-            : "The backend rejected the request. Try again.",
-      });
-    } finally {
-      setSending(false);
-    }
-  }
 
   return (
     <>
@@ -260,30 +283,6 @@ function InvoicePreviewInline({
           . Generating and previewing stay available until then.
         </p>
       ) : null}
-
-      <div className="flex flex-wrap justify-end gap-2">
-        <button type="button" className={ghostBtn} onClick={onReset}>
-          Choose a different period
-        </button>
-        <button
-          type="button"
-          className={primaryBtn}
-          disabled={!!invoice.sentAt || sending || locked}
-          title={
-            locked && !invoice.sentAt
-              ? `Can't be sent until the period ends on ${formatDate(lastDayOfPeriodValue(invoice.periodType, invoice.periodValue).toISOString())}`
-              : undefined
-          }
-          onClick={handleSend}
-        >
-          {sending ? (
-            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-          ) : (
-            <Mail aria-hidden="true" className="size-4" />
-          )}
-          {invoice.sentAt ? "Sent" : sending ? "Sending…" : "Send email"}
-        </button>
-      </div>
     </>
   );
 }

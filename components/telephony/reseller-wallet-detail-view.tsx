@@ -23,7 +23,8 @@ import { downloadBlob } from "@/lib/utils";
 import { formatDate } from "@/lib/telephony/status";
 import type { Invoice, Wallet } from "@/lib/telephony/types";
 
-const LEDGER_PAGE_SIZE = 10;
+const LEDGER_PAGE_SIZE = 5;
+const INVOICES_PAGE_SIZE = 5;
 
 /**
  * Admin-only per-reseller wallet detail — the consolidated home for every
@@ -57,6 +58,7 @@ export function ResellerWalletDetailView({
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [invoicesError, setInvoicesError] = useState("");
   const [invoicesRefreshKey, setInvoicesRefreshKey] = useState(0);
+  const [invoicesPage, setInvoicesPage] = useState(1);
   const [sendingInvoice, setSendingInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
@@ -96,7 +98,13 @@ export function ResellerWalletDetailView({
     invoicesApi
       .list({ resellerId })
       .then((rows) => {
-        if (!cancelled) setInvoices(rows);
+        if (!cancelled) {
+          setInvoices(
+            [...rows].sort(
+              (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+            ),
+          );
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -173,6 +181,22 @@ export function ResellerWalletDetailView({
     ? Math.max(1, Math.ceil(wallet.pagination.total / wallet.pagination.limit))
     : 1;
 
+  // Newest first within whatever page the backend returned — matches the
+  // invoices list below and keeps "page 1 on load" reading as "most recent".
+  const ledgerEntries = [...(wallet?.ledger ?? [])].sort(
+    (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+  );
+
+  const invoicesPageCount = Math.max(
+    1,
+    Math.ceil(invoices.length / INVOICES_PAGE_SIZE),
+  );
+  const invoicesCurrentPage = Math.min(invoicesPage, invoicesPageCount);
+  const invoicesPageRows = invoices.slice(
+    (invoicesCurrentPage - 1) * INVOICES_PAGE_SIZE,
+    invoicesCurrentPage * INVOICES_PAGE_SIZE,
+  );
+
   return (
     <div className="space-y-10">
       <PageHeader
@@ -218,47 +242,52 @@ export function ResellerWalletDetailView({
           />
         </div>
       ) : (
-        <>
+        <div className="space-y-10">
           <section
             aria-label="Overview"
-            className="grid grid-cols-2 gap-6 lg:grid-cols-4"
+            className="flex flex-col gap-6 lg:flex-row lg:items-start"
           >
-            <BalanceStat
-              balanceUsd={wallet?.balanceUsd ?? 0}
-              loading={walletLoading && !wallet}
-            />
-            <StatBlock
-              label="Owed accounts"
-              value={wallet?.owedAccounts ?? 0}
-              tone={wallet && wallet.owedAccounts > 0 ? "negative" : "default"}
-              hint="Renewal cycles the deficit represents"
-              loading={walletLoading && !wallet}
-            />
-          </section>
+            <div className="grid grid-cols-2 gap-6 lg:grid-cols-1 lg:w-[30%] lg:shrink-0">
+              <BalanceStat
+                balanceUsd={wallet?.balanceUsd ?? 0}
+                loading={walletLoading && !wallet}
+              />
+              <StatBlock
+                label="Owed accounts"
+                value={wallet?.owedAccounts ?? 0}
+                tone={
+                  wallet && wallet.owedAccounts > 0 ? "negative" : "default"
+                }
+                hint="Renewal cycles the deficit represents"
+                loading={walletLoading && !wallet}
+              />
+            </div>
 
-          <section aria-label="Ledger history" className="space-y-4">
-            <h2 className="font-display text-lg font-bold tracking-tight">
-              Ledger history
-            </h2>
-            <WalletLedgerTable
-              entries={wallet?.ledger ?? []}
-              accounts={accounts}
-              loading={(walletLoading && !wallet) || accountsLoading}
-              page={wallet?.pagination.page}
-              pageCount={pageCount}
-              onPageChange={setPage}
-            />
-          </section>
-
-          <div className="grid items-start gap-6 lg:grid-cols-[23rem_minmax(0,1fr)]">
-            <section aria-label="Generate invoice">
+            <div aria-label="Generate invoice" className="lg:flex-1">
               <InvoiceGenerator
                 reseller={reseller}
                 onGenerated={() => {
                   setPage(1);
                   setWalletRefreshKey((k) => k + 1);
+                  setInvoicesPage(1);
                   setInvoicesRefreshKey((k) => k + 1);
                 }}
+              />
+            </div>
+          </section>
+
+          <div className="space-y-6">
+            <section aria-label="Ledger history" className="space-y-4">
+              <h2 className="font-display text-lg font-bold tracking-tight">
+                Ledger history
+              </h2>
+              <WalletLedgerTable
+                entries={ledgerEntries}
+                accounts={accounts}
+                loading={(walletLoading && !wallet) || accountsLoading}
+                page={wallet?.pagination.page}
+                pageCount={pageCount}
+                onPageChange={setPage}
               />
             </section>
 
@@ -284,63 +313,103 @@ export function ResellerWalletDetailView({
                 <div className="glass rounded-[20px]">
                   <EmptyState
                     title="No invoices yet"
-                    description="Generate one on the left once there are renewal charges to bill."
+                    description="Generate one above once there are renewal charges to bill."
                   />
                 </div>
               ) : (
-                <ul className="space-y-2.5">
-                  {invoices.map((inv) => {
-                    const sendable = periodHasEnded(
-                      inv.periodType,
-                      inv.periodValue,
-                    );
-                    return (
-                      <li
-                        key={inv.id}
-                        className="glass flex flex-wrap items-center justify-between gap-3 rounded-[16px] px-4 py-3.5 md:px-5"
-                      >
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="text-sm font-medium tabular-nums">
-                            {formatPeriodValue(inv.periodType, inv.periodValue)}
-                          </span>
-                          <span className="text-sm font-semibold tabular-nums">
-                            {formatUsd(inv.totalAmountUsd)}
-                          </span>
-                          <InvoiceSentPill sentAt={inv.sentAt} />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadInvoicePdf(inv)}
-                            className="glass inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-medium hover:bg-accent"
-                          >
-                            <Download aria-hidden="true" className="size-3.5" />
-                            PDF
-                          </button>
-                          {!inv.sentAt ? (
+                <>
+                  <ul className="space-y-2.5">
+                    {invoicesPageRows.map((inv) => {
+                      const sendable = periodHasEnded(
+                        inv.periodType,
+                        inv.periodValue,
+                      );
+                      return (
+                        <li
+                          key={inv.id}
+                          className="glass flex flex-wrap items-center justify-between gap-3 rounded-[16px] px-4 py-3.5 md:px-5"
+                        >
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-sm font-medium tabular-nums">
+                              {formatPeriodValue(
+                                inv.periodType,
+                                inv.periodValue,
+                              )}
+                            </span>
+                            <span className="text-sm font-semibold tabular-nums">
+                              {formatUsd(inv.totalAmountUsd)}
+                            </span>
+                            <InvoiceSentPill sentAt={inv.sentAt} />
+                          </div>
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => setSendingInvoice(inv)}
-                              disabled={!sendable}
-                              title={
-                                sendable
-                                  ? undefined
-                                  : `Can't be sent until the period ends on ${formatDate(lastDayOfPeriodValue(inv.periodType, inv.periodValue).toISOString())}`
-                              }
-                              className="module-bg inline-flex h-9 items-center rounded-xl px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                              onClick={() => handleDownloadInvoicePdf(inv)}
+                              className="glass inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-medium hover:bg-accent"
                             >
-                              Send
+                              <Download
+                                aria-hidden="true"
+                                className="size-3.5"
+                              />
+                              PDF
                             </button>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                            {!inv.sentAt ? (
+                              <button
+                                type="button"
+                                onClick={() => setSendingInvoice(inv)}
+                                disabled={!sendable}
+                                title={
+                                  sendable
+                                    ? undefined
+                                    : `Can't be sent until the period ends on ${formatDate(lastDayOfPeriodValue(inv.periodType, inv.periodValue).toISOString())}`
+                                }
+                                className="module-bg inline-flex h-9 items-center rounded-xl px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Send
+                              </button>
+                            ) : null}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {invoicesPageCount > 1 ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="label-meta">
+                        Page {invoicesCurrentPage} of {invoicesPageCount}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={invoicesCurrentPage <= 1}
+                          onClick={() =>
+                            setInvoicesPage((p) => Math.max(1, p - 1))
+                          }
+                          className="glass h-10 rounded-xl px-4 text-sm font-medium disabled:opacity-40"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          type="button"
+                          disabled={invoicesCurrentPage >= invoicesPageCount}
+                          onClick={() =>
+                            setInvoicesPage((p) =>
+                              Math.min(invoicesPageCount, p + 1),
+                            )
+                          }
+                          className="glass h-10 rounded-xl px-4 text-sm font-medium disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               )}
             </section>
           </div>
-        </>
+        </div>
       )}
 
       <TopUpWalletDialog

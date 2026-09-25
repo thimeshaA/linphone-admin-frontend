@@ -10,7 +10,9 @@ export function ResellerWalletDetailClient({
 }) {
   return (
     <AppShell>
-      <ResellerWalletDetailView resellerId={resellerId} />
+      {/* key resets all local state (page numbers included) when navigating
+          from one reseller's wallet straight to another's. */}
+      <ResellerWalletDetailView key={resellerId} resellerId={resellerId} />
     </AppShell>
   );
 }

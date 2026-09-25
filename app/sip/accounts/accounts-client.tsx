@@ -169,7 +169,7 @@ function SipAccountsPage() {
       {resellerFilterName ? (
         <div className="glass flex items-center justify-between gap-3 rounded-xl px-4 py-2.5">
           <p className="text-sm">
-            Showing accounts created by{" "}
+            Showing accounts owned by{" "}
             <span className="font-semibold">{resellerFilterName}</span>
           </p>
           <button
@@ -267,6 +267,34 @@ function SipAccountsPage() {
               <option value="created">Sort: newest</option>
               <option value="identifier">Sort: identifier</option>
             </select>
+            {isAdmin ? (
+              <>
+                <label className="sr-only" htmlFor="owner-filter">
+                  Filter by owner
+                </label>
+                <select
+                  id="owner-filter"
+                  value={resellerFilter ?? "all"}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setPage(0);
+                    router.push(
+                      value === "all"
+                        ? "/sip/accounts"
+                        : `/sip/accounts?reseller=${value}`,
+                    );
+                  }}
+                  className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="all">Owned by: all</option>
+                  {resellers.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      Owned by: {r.username}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -335,7 +363,7 @@ function SipAccountsPage() {
                 <thead>
                   <tr className="border-b border-border">
                     {["Identifier", "Email", "Status", "Expiry", "Created"]
-                      .concat(isAdmin ? ["Created by"] : [])
+                      .concat(isAdmin ? ["Owned by"] : [])
                       .map((h) => (
                         <th
                           key={h}
@@ -428,7 +456,7 @@ function SipAccountsPage() {
                     </div>
                     <div>
                       <dt className="label-meta">
-                        {isAdmin ? "Created by" : "Created"}
+                        {isAdmin ? "Owned by" : "Created"}
                       </dt>
                       <dd className="mt-1 text-sm">
                         {isAdmin ? a.createdByName : formatDate(a.createdAt)}

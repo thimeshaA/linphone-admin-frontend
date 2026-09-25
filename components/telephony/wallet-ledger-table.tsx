@@ -1,14 +1,10 @@
-import { Download } from "lucide-react";
-import { toast } from "sonner";
-import { ApiError } from "@/lib/api/client";
-import { invoicesApi } from "@/lib/api/invoices";
 import { formatDate } from "@/lib/telephony/status";
 import type {
   SipAccount,
   WalletLedgerEntry,
   WalletLedgerType,
 } from "@/lib/telephony/types";
-import { cn, downloadBlob } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "./primitives";
 import { formatUsd } from "./wallet-balance";
 
@@ -29,39 +25,6 @@ function accountLabel(entry: WalletLedgerEntry, accounts: SipAccount[]) {
   if (entry.accountSipId) return entry.accountSipId;
   const account = accounts.find((a) => a.id === entry.relatedAccountId);
   return account ? account.sipId : "Deleted account";
-}
-
-function referenceLabel(entry: WalletLedgerEntry) {
-  if (entry.invoiceId) return `Invoice #${entry.invoiceId}`;
-  return "—";
-}
-
-async function downloadInvoiceReceipt(invoiceId: string) {
-  try {
-    const { blob, filename } = await invoicesApi.pdf(invoiceId);
-    downloadBlob(blob, filename ?? `invoice-${invoiceId}.pdf`);
-  } catch (err) {
-    toast.error("Could not download the receipt", {
-      description:
-        err instanceof ApiError
-          ? err.message
-          : "The backend rejected the request.",
-    });
-  }
-}
-
-function ReceiptButton({ invoiceId }: { invoiceId: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => downloadInvoiceReceipt(invoiceId)}
-      className="glass inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium hover:bg-accent"
-      title={`Download receipt for invoice #${invoiceId}`}
-    >
-      <Download aria-hidden="true" className="size-3.5" />
-      Invoice #{invoiceId}
-    </button>
-  );
 }
 
 /** Shared ledger history table — reseller's own wallet page and the admin's
@@ -111,7 +74,7 @@ export function WalletLedgerTable({
           <caption className="sr-only">Wallet ledger history</caption>
           <thead>
             <tr className="border-b border-border">
-              {["Date", "Type", "Amount", "Account", "Reference"].map((h) => (
+              {["Date", "Type", "Amount", "Account"].map((h) => (
                 <th
                   key={h}
                   scope="col"
@@ -146,13 +109,6 @@ export function WalletLedgerTable({
                 <td className="px-5 py-4 text-muted-foreground">
                   {accountLabel(e, accounts)}
                 </td>
-                <td className="px-5 py-4 text-muted-foreground">
-                  {e.invoiceId ? (
-                    <ReceiptButton invoiceId={e.invoiceId} />
-                  ) : (
-                    referenceLabel(e)
-                  )}
-                </td>
               </tr>
             ))}
           </tbody>
@@ -186,11 +142,6 @@ export function WalletLedgerTable({
               <p className="mt-2 text-xs text-muted-foreground">
                 {accountLabel(e, accounts)}
               </p>
-            ) : null}
-            {e.invoiceId ? (
-              <div className="mt-2">
-                <ReceiptButton invoiceId={e.invoiceId} />
-              </div>
             ) : null}
           </li>
         ))}
