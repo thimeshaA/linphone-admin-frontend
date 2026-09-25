@@ -247,7 +247,7 @@ export function ResellerWalletDetailView({
             aria-label="Overview"
             className="flex flex-col gap-6 lg:flex-row lg:items-start"
           >
-            <div className="grid grid-cols-2 gap-6 lg:grid-cols-1 lg:w-[30%] lg:shrink-0">
+            <div className="grid grid-cols-2 gap-6 lg:grid-cols-1 lg:w-[30%] lg:shrink-0 lg:gap-10">
               <BalanceStat
                 balanceUsd={wallet?.balanceUsd ?? 0}
                 loading={walletLoading && !wallet}
