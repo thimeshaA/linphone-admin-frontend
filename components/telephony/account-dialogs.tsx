@@ -97,6 +97,7 @@ export function CreateAccountDialog({
   const { createAccount } = useTelephony();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [resellerId, setResellerId] = useState("");
   const [periods, setPeriods] = useState(1); // 1 x 6 months = the base period
@@ -107,6 +108,7 @@ export function CreateAccountDialog({
   function reset() {
     setUsername("");
     setEmail("");
+    setPhone("");
     setPassword("");
     setResellerId("");
     setPeriods(1);
@@ -118,11 +120,13 @@ export function CreateAccountDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const next: Record<string, string> = {};
-    if (!/^[\w.-]{1,64}$/.test(username))
+    if (!/^[\w.-]{1,20}$/.test(username))
       next["username"] =
-        "Use letters, numbers, dots, underscores or hyphens only — no spaces.";
+        "Use letters, numbers, dots, underscores or hyphens only — no spaces, 20 characters max.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       next["email"] = "Enter a valid email address.";
+    if (!phone.trim())
+      next["phone"] = "A phone number is required.";
     if (!password.trim())
       next["password"] = "A password is required to register the identity.";
     if (!resellerId)
@@ -138,6 +142,7 @@ export function CreateAccountDialog({
       const created = await createAccount({
         sipId: `${username}@${SIP_DOMAIN}`,
         email: email.trim(),
+        phone: phone.trim(),
         password,
         expiresAt,
         creatorId: resellerId,
@@ -183,13 +188,18 @@ export function CreateAccountDialog({
               value={username}
               onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
               placeholder="4210"
+              maxLength={20}
               aria-invalid={!!errors["username"]}
             />
             {errors["username"] ? (
               <p role="alert" className="text-xs text-negative-foreground">
                 {errors["username"]}
               </p>
-            ) : null}
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {username.length}/20 characters
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -206,6 +216,24 @@ export function CreateAccountDialog({
             {errors["email"] ? (
               <p role="alert" className="text-xs text-negative-foreground">
                 {errors["email"]}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="c-phone">Phone</Label>
+            <input
+              id="c-phone"
+              type="tel"
+              className={inputClass}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+1 555 000 1234"
+              aria-invalid={!!errors["phone"]}
+            />
+            {errors["phone"] ? (
+              <p role="alert" className="text-xs text-negative-foreground">
+                {errors["phone"]}
               </p>
             ) : null}
           </div>

@@ -43,6 +43,7 @@ interface Ctx {
   createAccount: (input: {
     sipId: string;
     email: string;
+    phone: string;
     password: string;
     expiresAt: string;
     creatorId: string;
@@ -302,6 +303,7 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
           authid: authid ?? input.sipId,
           domain: domain ?? "",
           email: input.email,
+          phone: input.phone,
           password: input.password,
           expires_at: new Date(input.expiresAt).toISOString(),
           resellerId: input.creatorId,

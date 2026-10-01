@@ -10,7 +10,6 @@ interface BackendAccount {
   status: string;
   expires_at: string;
   disabled_at: string | null;
-  expired_at: string | null;
   creator_id: string | number;
   created_by?: string;
 }
@@ -38,6 +37,7 @@ export const accountsApi = {
     authid: string;
     domain: string;
     email: string;
+    phone: string;
     password: string;
     expires_at: string;
     resellerId: string;
