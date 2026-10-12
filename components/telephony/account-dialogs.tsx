@@ -23,6 +23,7 @@ import { useTelephony } from "@/contexts/telephony-context";
 import { formatDate, toDateInput } from "@/lib/telephony/status";
 import { addPeriods } from "@/lib/telephony/period";
 import type { SipAccount } from "@/lib/telephony/types";
+import { AccountQrDialog } from "./account-qr-dialog";
 import { PeriodPicker } from "./period-picker";
 
 const SIP_DOMAIN = "test.kryptoline.com";
@@ -104,6 +105,9 @@ export function CreateAccountDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [serverError, setServerError] = useState("");
+  const [qr, setQr] = useState<{ authid: string; payload: string } | null>(
+    null,
+  );
 
   function reset() {
     setUsername("");
@@ -125,8 +129,7 @@ export function CreateAccountDialog({
         "Use letters, numbers, dots, underscores or hyphens only — no spaces, 20 characters max.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       next["email"] = "Enter a valid email address.";
-    if (!phone.trim())
-      next["phone"] = "A phone number is required.";
+    if (!phone.trim()) next["phone"] = "A phone number is required.";
     if (!password.trim())
       next["password"] = "A password is required to register the identity.";
     if (!resellerId)
@@ -139,7 +142,7 @@ export function CreateAccountDialog({
       const expiresAt = toDateInput(
         addPeriods(new Date(), periods).toISOString(),
       );
-      const created = await createAccount({
+      const { account, qrPayload } = await createAccount({
         sipId: `${username}@${SIP_DOMAIN}`,
         email: email.trim(),
         phone: phone.trim(),
@@ -147,9 +150,12 @@ export function CreateAccountDialog({
         expiresAt,
         creatorId: resellerId,
       });
-      toast.success(`${created.sipId} provisioned`, {
-        description: `Active until ${formatDate(created.expiresAt)}.`,
+      toast.success(`${account.sipId} provisioned`, {
+        description: `Active until ${formatDate(account.expiresAt)}.`,
       });
+      if (qrPayload) {
+        setQr({ authid: account.displayName, payload: qrPayload });
+      }
       reset();
       onOpenChange(false);
     } catch (err) {
@@ -161,158 +167,165 @@ export function CreateAccountDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) =>
-        v ? onOpenChange(v) : (reset(), onOpenChange(false))
-      }
-    >
-      <DialogContent className="rounded-[20px] sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl">
-            Provision a SIP account
-          </DialogTitle>
-          <DialogDescription>
-            The identity is registered on the Flexisip cluster immediately and
-            starts in the active state. Subscriptions run in fixed 6-month
-            periods.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(v) =>
+          v ? onOpenChange(v) : (reset(), onOpenChange(false))
+        }
+      >
+        <DialogContent className="rounded-[20px] sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">
+              Provision a SIP account
+            </DialogTitle>
+            <DialogDescription>
+              The identity is registered on the Flexisip cluster immediately and
+              starts in the active state. Subscriptions run in fixed 6-month
+              periods.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-4" noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="c-sip">SIP username</Label>
-            <input
-              id="c-sip"
-              className={inputClass}
-              value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
-              placeholder="4210"
-              maxLength={20}
-              aria-invalid={!!errors["username"]}
-            />
-            {errors["username"] ? (
-              <p role="alert" className="text-xs text-negative-foreground">
-                {errors["username"]}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {username.length}/20 characters
-              </p>
-            )}
-          </div>
+          <form onSubmit={submit} className="space-y-4" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="c-sip">SIP username</Label>
+              <input
+                id="c-sip"
+                className={inputClass}
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+                placeholder="4210"
+                maxLength={20}
+                aria-invalid={!!errors["username"]}
+              />
+              {errors["username"] ? (
+                <p role="alert" className="text-xs text-negative-foreground">
+                  {errors["username"]}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {username.length}/20 characters
+                </p>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="c-email">Email</Label>
-            <input
-              id="c-email"
-              type="email"
-              className={inputClass}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="customer@example.com"
-              aria-invalid={!!errors["email"]}
-            />
-            {errors["email"] ? (
-              <p role="alert" className="text-xs text-negative-foreground">
-                {errors["email"]}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="c-phone">Phone</Label>
-            <input
-              id="c-phone"
-              type="tel"
-              className={inputClass}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 555 000 1234"
-              aria-invalid={!!errors["phone"]}
-            />
-            {errors["phone"] ? (
-              <p role="alert" className="text-xs text-negative-foreground">
-                {errors["phone"]}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="c-password">Password</Label>
-            <input
-              id="c-password"
-              type="password"
-              autoComplete="new-password"
-              className={inputClass}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              aria-invalid={!!errors["password"]}
-            />
-            {errors["password"] ? (
-              <p role="alert" className="text-xs text-negative-foreground">
-                {errors["password"]}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="c-reseller">Assign to reseller</Label>
-            <ResellerSelect
-              id="c-reseller"
-              value={resellerId}
-              onChange={setResellerId}
-              invalid={!!errors["reseller"]}
-            />
-            {errors["reseller"] ? (
-              <p role="alert" className="text-xs text-negative-foreground">
-                {errors["reseller"]}
-              </p>
-            ) : null}
-          </div>
-
-          <PeriodPicker
-            id="c-exp"
-            label="Subscription length"
-            baseDate={new Date()}
-            periods={periods}
-            onChange={setPeriods}
-          />
-
-          {state === "error" ? (
-            <p
-              role="alert"
-              className="rounded-xl bg-negative-muted px-4 py-3 text-sm text-negative-foreground"
-            >
-              {serverError}. Your input is preserved — try again.
-            </p>
-          ) : null}
-
-          <DialogFooter className="gap-2 sm:gap-2">
-            <button
-              type="button"
-              className={ghostBtn}
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={primaryBtn}
-              disabled={state === "loading"}
-            >
-              {state === "loading" ? (
-                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+            <div className="space-y-2">
+              <Label htmlFor="c-email">Email</Label>
+              <input
+                id="c-email"
+                type="email"
+                className={inputClass}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="customer@example.com"
+                aria-invalid={!!errors["email"]}
+              />
+              {errors["email"] ? (
+                <p role="alert" className="text-xs text-negative-foreground">
+                  {errors["email"]}
+                </p>
               ) : null}
-              {state === "loading" ? "Provisioning…" : "Provision account"}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="c-phone">Phone</Label>
+              <input
+                id="c-phone"
+                type="tel"
+                className={inputClass}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+1 555 000 1234"
+                aria-invalid={!!errors["phone"]}
+              />
+              {errors["phone"] ? (
+                <p role="alert" className="text-xs text-negative-foreground">
+                  {errors["phone"]}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="c-password">Password</Label>
+              <input
+                id="c-password"
+                type="password"
+                autoComplete="new-password"
+                className={inputClass}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                aria-invalid={!!errors["password"]}
+              />
+              {errors["password"] ? (
+                <p role="alert" className="text-xs text-negative-foreground">
+                  {errors["password"]}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="c-reseller">Assign to reseller</Label>
+              <ResellerSelect
+                id="c-reseller"
+                value={resellerId}
+                onChange={setResellerId}
+                invalid={!!errors["reseller"]}
+              />
+              {errors["reseller"] ? (
+                <p role="alert" className="text-xs text-negative-foreground">
+                  {errors["reseller"]}
+                </p>
+              ) : null}
+            </div>
+
+            <PeriodPicker
+              id="c-exp"
+              label="Subscription length"
+              baseDate={new Date()}
+              periods={periods}
+              onChange={setPeriods}
+            />
+
+            {state === "error" ? (
+              <p
+                role="alert"
+                className="rounded-xl bg-negative-muted px-4 py-3 text-sm text-negative-foreground"
+              >
+                {serverError}. Your input is preserved — try again.
+              </p>
+            ) : null}
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <button
+                type="button"
+                className={ghostBtn}
+                onClick={() => {
+                  reset();
+                  onOpenChange(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className={primaryBtn}
+                disabled={state === "loading"}
+              >
+                {state === "loading" ? (
+                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                ) : null}
+                {state === "loading" ? "Provisioning…" : "Provision account"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <AccountQrDialog
+        authid={qr?.authid ?? null}
+        qrPayload={qr?.payload ?? null}
+        onClose={() => setQr(null)}
+      />
+    </>
   );
 }
 

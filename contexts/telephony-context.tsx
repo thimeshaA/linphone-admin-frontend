@@ -47,7 +47,7 @@ interface Ctx {
     password: string;
     expiresAt: string;
     creatorId: string;
-  }) => Promise<SipAccount>;
+  }) => Promise<{ account: SipAccount; qrPayload?: string | undefined }>;
   renewAccount: (id: string, expiresAt: string) => Promise<void>;
   setDisabled: (id: string, disabled: boolean) => Promise<void>;
   reassignAccount: (id: string, creatorId: string) => Promise<void>;
@@ -299,7 +299,7 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     createAccount: async (input) => {
       const [authid, domain] = input.sipId.split("@");
       try {
-        const created = await accountsApi.create({
+        const { account, qrPayload } = await accountsApi.create({
           authid: authid ?? input.sipId,
           domain: domain ?? "",
           email: input.email,
@@ -308,8 +308,8 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
           expires_at: new Date(input.expiresAt).toISOString(),
           resellerId: input.creatorId,
         });
-        setAccounts((prev) => [created, ...prev]);
-        return created;
+        setAccounts((prev) => [account, ...prev]);
+        return { account, qrPayload };
       } catch (err) {
         return handleApiError(err);
       }

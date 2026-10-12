@@ -12,6 +12,10 @@ interface BackendAccount {
   disabled_at: string | null;
   creator_id: string | number;
   created_by?: string;
+  // Present only on the create response, only on success, and only once —
+  // the backend can never return it again after this call. Never persisted
+  // into SipAccount/mapAccount, so it can't end up in long-lived list state.
+  qrPayload?: string;
 }
 
 function mapAccount(a: BackendAccount): SipAccount {
@@ -48,7 +52,7 @@ export const accountsApi = {
         ...input,
         expires_at: toMySqlDatetime(input.expires_at),
       }),
-    }).then(mapAccount),
+    }).then((a) => ({ account: mapAccount(a), qrPayload: a.qrPayload })),
   renew: (id: string, expiresAt: string) =>
     apiFetch<BackendAccount>(`/accounts/${id}/renew`, {
       method: "PATCH",
