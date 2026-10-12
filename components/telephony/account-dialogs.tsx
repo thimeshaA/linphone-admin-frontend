@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   AlertTriangle,
+  KeyRound,
   Loader2,
   PauseCircle,
   Plus,
@@ -20,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTelephony } from "@/contexts/telephony-context";
+import { ApiError } from "@/lib/api/client";
 import { formatDate, toDateInput } from "@/lib/telephony/status";
 import { addPeriods } from "@/lib/telephony/period";
 import type { SipAccount } from "@/lib/telephony/types";
@@ -508,6 +510,130 @@ export function DisableDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function ChangeAccountPasswordDialog({
+  account,
+  onClose,
+}: {
+  account: SipAccount | null;
+  onClose: () => void;
+}) {
+  const { changeAccountPassword } = useTelephony();
+  const [newPassword, setNewPassword] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [qr, setQr] = useState<{ authid: string; payload: string } | null>(
+    null,
+  );
+
+  function reset() {
+    setNewPassword("");
+    setErrors({});
+  }
+
+  function handleClose() {
+    reset();
+    onClose();
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!account) return;
+    const next: Record<string, string> = {};
+    if (!newPassword.trim())
+      next["newPassword"] = "A new password is required.";
+    setErrors(next);
+    if (Object.keys(next).length) return;
+
+    setLoading(true);
+    try {
+      const { qrPayload } = await changeAccountPassword(
+        account.id,
+        newPassword,
+      );
+      toast.success(`Password changed for ${account.sipId}`);
+      if (qrPayload) {
+        setQr({ authid: account.displayName, payload: qrPayload });
+      }
+      handleClose();
+    } catch (err) {
+      toast.error("Password change failed", {
+        description:
+          err instanceof ApiError
+            ? err.message
+            : "The backend rejected the request. Try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <Dialog
+        open={!!account}
+        onOpenChange={(v) => (!v ? handleClose() : undefined)}
+      >
+        <DialogContent className="rounded-[20px] sm:max-w-md">
+          <DialogHeader>
+            <span
+              aria-hidden="true"
+              className="grid size-10 place-items-center rounded-2xl bg-neutral-pill text-muted-foreground"
+            >
+              <KeyRound className="size-5" />
+            </span>
+            <DialogTitle className="font-display text-xl">
+              Change password
+            </DialogTitle>
+            <DialogDescription>
+              Set a new password for this SIP identity. It needs to be
+              re-registered in the app with the new credentials.
+            </DialogDescription>
+          </DialogHeader>
+
+          <p className="font-mono text-sm break-all">{account?.sipId}</p>
+
+          <form onSubmit={submit} className="space-y-4" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="cp-password">New password</Label>
+              <input
+                id="cp-password"
+                type="password"
+                autoComplete="new-password"
+                className={inputClass}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                aria-invalid={!!errors["newPassword"]}
+              />
+              {errors["newPassword"] ? (
+                <p role="alert" className="text-xs text-negative-foreground">
+                  {errors["newPassword"]}
+                </p>
+              ) : null}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <button type="button" className={ghostBtn} onClick={handleClose}>
+                Cancel
+              </button>
+              <button type="submit" className={primaryBtn} disabled={loading}>
+                {loading ? (
+                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                ) : null}
+                {loading ? "Saving…" : "Change password"}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <AccountQrDialog
+        authid={qr?.authid ?? null}
+        qrPayload={qr?.payload ?? null}
+        onClose={() => setQr(null)}
+      />
+    </>
   );
 }
 

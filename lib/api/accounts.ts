@@ -70,4 +70,12 @@ export const accountsApi = {
     }).then(mapAccount),
   remove: (id: string) =>
     apiFetch<{ message: string }>(`/accounts/${id}`, { method: "DELETE" }),
+  changePassword: (id: string, password: string) =>
+    apiFetch<{ message: string; qrPayload?: string }>(
+      `/accounts/${id}/password`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ password }),
+      },
+    ).then((r) => ({ qrPayload: r.qrPayload })),
 };

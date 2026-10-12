@@ -3,6 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  KeyRound,
   MoreHorizontal,
   PauseCircle,
   PlayCircle,
@@ -21,6 +22,7 @@ import {
 } from "@/components/telephony/primitives";
 import { StatusPill } from "@/components/telephony/status-pill";
 import {
+  ChangeAccountPasswordDialog,
   CreateAccountDialog,
   DeleteDialog,
   DisableDialog,
@@ -76,6 +78,9 @@ function SipAccountsPage() {
   const [toggling, setToggling] = useState<SipAccount | null>(null);
   const [deleting, setDeleting] = useState<SipAccount | null>(null);
   const [reassigning, setReassigning] = useState<SipAccount | null>(null);
+  const [changingPassword, setChangingPassword] = useState<SipAccount | null>(
+    null,
+  );
 
   const isAdmin = user?.role === "admin";
   const resellerFilterName = resellerFilter
@@ -416,6 +421,7 @@ function SipAccountsPage() {
                             account={a}
                             isAdmin={isAdmin}
                             onToggle={() => setToggling(a)}
+                            onChangePassword={() => setChangingPassword(a)}
                             onDelete={() => setDeleting(a)}
                             onReassign={() => setReassigning(a)}
                           />
@@ -468,6 +474,7 @@ function SipAccountsPage() {
                       account={a}
                       isAdmin={isAdmin}
                       onToggle={() => setToggling(a)}
+                      onChangePassword={() => setChangingPassword(a)}
                       onDelete={() => setDeleting(a)}
                       onReassign={() => setReassigning(a)}
                     />
@@ -507,6 +514,10 @@ function SipAccountsPage() {
       <CreateAccountDialog open={createOpen} onOpenChange={setCreateOpen} />
       <RequestAccountsDialog open={requestOpen} onOpenChange={setRequestOpen} />
       <DisableDialog account={toggling} onClose={() => setToggling(null)} />
+      <ChangeAccountPasswordDialog
+        account={changingPassword}
+        onClose={() => setChangingPassword(null)}
+      />
       <DeleteDialog account={deleting} onClose={() => setDeleting(null)} />
       <ReassignDialog
         account={reassigning}
@@ -520,12 +531,14 @@ function RowMenu({
   account,
   isAdmin,
   onToggle,
+  onChangePassword,
   onDelete,
   onReassign,
 }: {
   account: SipAccount;
   isAdmin: boolean;
   onToggle: () => void;
+  onChangePassword: () => void;
   onDelete: () => void;
   onReassign: () => void;
 }) {
@@ -545,6 +558,10 @@ function RowMenu({
             <PauseCircle aria-hidden="true" className="size-4" />
           )}
           {account.disabled ? "Re-enable account" : "Disable account"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onChangePassword} className="gap-2">
+          <KeyRound aria-hidden="true" className="size-4" />
+          Change password
         </DropdownMenuItem>
         {isAdmin ? (
           <>

@@ -52,6 +52,10 @@ interface Ctx {
   setDisabled: (id: string, disabled: boolean) => Promise<void>;
   reassignAccount: (id: string, creatorId: string) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+  changeAccountPassword: (
+    id: string,
+    newPassword: string,
+  ) => Promise<{ qrPayload?: string | undefined }>;
   resellers: Reseller[];
   resellersLoading: boolean;
   createReseller: (input: {
@@ -353,6 +357,13 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
         setAccounts((prev) => prev.filter((a) => a.id !== id));
       } catch (err) {
         handleApiError(err);
+      }
+    },
+    changeAccountPassword: async (id, newPassword) => {
+      try {
+        return await accountsApi.changePassword(id, newPassword);
+      } catch (err) {
+        return handleApiError(err);
       }
     },
     resellers,
