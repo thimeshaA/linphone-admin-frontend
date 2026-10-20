@@ -88,7 +88,10 @@ export function PageHeader({
   module?: ModuleKey;
 }) {
   return (
-    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:items-end sm:justify-between">
+    // Actions stack under the title on phones: beside it, even a single
+    // pill button squeezes the title/description into a narrow column, and
+    // two (e.g. wallet detail's Back + Top up) break the title mid-word.
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         <p className="label-meta flex items-center gap-2">
           {module ? (
@@ -115,7 +118,9 @@ export function PageHeader({
         ) : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {actions}
+        </div>
       ) : null}
     </header>
   );

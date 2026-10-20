@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div data-module={accent} className="relative min-h-dvh md:flex">
+    <div data-module={accent} className="relative min-h-dvh lg:flex">
       {/* ambient command-center wash, tinted by the active area's accent */}
       <div
         aria-hidden="true"
@@ -61,10 +61,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
 
-      {/* Desktop: primary icon rail + reflowing secondary nav — hover a workspace
+      {/* Desktop (lg+): primary icon rail + reflowing secondary nav — hover a workspace
           icon to open it; leaving the whole rail+panel region closes it. */}
       <div
-        className="hidden md:flex"
+        className="hidden lg:flex"
         onMouseLeave={() => setHoveredAreaId(null)}
       >
         <PrimaryRail
@@ -76,8 +76,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SecondaryColumn areaId={hoveredAreaId ?? areaId} />
       </div>
 
-      {/* Mobile top bar */}
-      <div className="glass sticky top-0 z-40 flex items-center justify-between border-x-0 border-t-0 px-4 py-4 md:hidden">
+      {/* Phone + tablet top bar. Tablets get this shell too: the rail plus the
+          always-open secondary column take 336px, which left md-width pages
+          (whose tables switch on at md) clipping their right-hand columns. */}
+      <div className="glass sticky top-0 z-40 flex items-center justify-between border-x-0 border-t-0 px-4 py-4 lg:hidden">
         <div className="flex min-w-0 items-center gap-2">
           <MobileSecondaryNav areaId={areaId} />
           <Brand compact />
@@ -90,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main
         id="main"
-        className="min-w-0 flex-1 px-4 pb-[var(--mobile-nav-clearance)] mt-5 md:px-8 md:py-8 md:pb-10 lg:px-12"
+        className="min-w-0 flex-1 mt-5 px-4 pb-[var(--mobile-nav-clearance)] md:px-8 lg:py-8 lg:pb-10 lg:px-12"
       >
         <div className="mx-auto w-full max-w-6xl">{children}</div>
       </main>

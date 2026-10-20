@@ -245,9 +245,9 @@ export function ResellerWalletDetailView({
         <div className="space-y-10">
           <section
             aria-label="Overview"
-            className="flex flex-col gap-6 lg:flex-row lg:items-start"
+            className="flex flex-col gap-6 xl:flex-row xl:items-start"
           >
-            <div className="grid grid-cols-2 gap-6 lg:grid-cols-1 lg:w-[30%] lg:shrink-0 lg:gap-10">
+            <div className="grid grid-cols-2 gap-6 xl:w-[30%] xl:shrink-0 xl:grid-cols-1 xl:gap-10">
               <BalanceStat
                 balanceUsd={wallet?.balanceUsd ?? 0}
                 loading={walletLoading && !wallet}
@@ -263,7 +263,7 @@ export function ResellerWalletDetailView({
               />
             </div>
 
-            <div aria-label="Generate invoice" className="lg:flex-1">
+            <div aria-label="Generate invoice" className="min-w-0 xl:flex-1">
               <InvoiceGenerator
                 reseller={reseller}
                 onGenerated={() => {

@@ -262,8 +262,8 @@ function SipSubscriptionsPage() {
                   <p className="truncate font-mono text-xs text-muted-foreground">
                     {a.sipId}
                   </p>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
                       <div>
                         <p className="text-sm tabular-nums">
                           {formatDate(a.expiresAt)}

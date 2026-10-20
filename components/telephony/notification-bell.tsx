@@ -68,7 +68,10 @@ export function NotificationBell({
       <DropdownMenuContent
         side={side}
         align={align}
-        className="w-80 max-w-[calc(100vw-2rem)] p-0"
+        // Without padding, Radix's collision shift pins the panel flush to
+        // the viewport's left edge on phones (the bell sits at the right).
+        collisionPadding={12}
+        className="w-80 max-w-[calc(100vw-1.5rem)] p-0"
       >
         <div className="flex items-center justify-between gap-2 px-1">
           <DropdownMenuLabel className="text-sm font-semibold text-foreground">

@@ -359,8 +359,9 @@ function SipAccountsPage() {
           </div>
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="glass hidden overflow-x-auto rounded-[20px] md:block">
+            {/* Desktop table — xl, not md: its columns need ~900px, and on
+              tablets/small laptops (sidebars included) they were clipped */}
+            <div className="glass hidden overflow-x-auto rounded-[20px] xl:block">
               <table className="w-full min-w-[860px] text-sm">
                 <caption className="sr-only">
                   SIP accounts with status, expiry and management actions
@@ -434,7 +435,7 @@ function SipAccountsPage() {
             </div>
 
             {/* Mobile cards */}
-            <ul className="space-y-3 md:hidden">
+            <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
               {pageRows.map((a) => (
                 <li key={a.id} className="glass rounded-[20px] p-4">
                   <div className="flex items-start justify-between gap-3">

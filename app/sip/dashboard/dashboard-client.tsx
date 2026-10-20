@@ -104,7 +104,9 @@ function SipDashboardPage() {
         aria-label="Analytics"
         className={cn(
           "grid gap-6",
-          isAdmin ? "lg:grid-cols-3" : "lg:grid-cols-2",
+          // Three across only from xl: at lg the sidebars leave ~590px, so
+          // each chart got ~180px and its labels wrapped word-by-word.
+          isAdmin ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2",
         )}
       >
         <ChartCard
@@ -264,8 +266,9 @@ function ResellerBreakdownTable({
         </div>
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="glass hidden overflow-x-auto rounded-[20px] md:block">
+          {/* Desktop table — xl, not md: its columns need ~900px, and on
+              tablets/small laptops (sidebars included) they were clipped */}
+          <div className="glass hidden overflow-x-auto rounded-[20px] xl:block">
             <table className="w-full min-w-[760px] text-sm">
               <caption className="sr-only">
                 Resellers with total accounts, active/disabled split and status
@@ -334,7 +337,7 @@ function ResellerBreakdownTable({
           </div>
 
           {/* Mobile cards */}
-          <ul className="space-y-3 md:hidden">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
             {pageRows.map(({ reseller, total, active, disabled }) => (
               <li key={reseller.id} className="glass rounded-[20px] p-4">
                 <div className="flex items-start justify-between gap-3">

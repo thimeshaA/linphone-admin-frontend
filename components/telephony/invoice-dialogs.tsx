@@ -126,8 +126,8 @@ export function InvoiceGenerator({
 
   return (
     <div className="glass glass-hairline space-y-4 rounded-[20px] p-6">
-      <div className="lg:flex lg:items-start lg:gap-8">
-        <div className="lg:w-64 lg:shrink-0">
+      <div className="xl:flex xl:items-start xl:gap-8">
+        <div className="xl:w-64 xl:shrink-0">
           <div className="flex items-start gap-3">
             <span
               aria-hidden="true"
@@ -187,11 +187,11 @@ export function InvoiceGenerator({
         </div>
 
         {step === "period" ? (
-          <div className="mt-4 lg:mt-0 lg:flex-1">
+          <div className="mt-4 min-w-0 xl:mt-0 xl:flex-1">
             <PeriodSelect value={period} onChange={setPeriod} />
           </div>
         ) : invoice ? (
-          <div className="mt-4 lg:mt-0 lg:flex-1">
+          <div className="mt-4 min-w-0 xl:mt-0 xl:flex-1">
             <InvoicePreviewInline invoice={invoice} />
           </div>
         ) : null}

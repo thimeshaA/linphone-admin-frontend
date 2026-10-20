@@ -323,6 +323,30 @@
   }
 }
 
+/* iOS Safari zooms the whole page in when a focused field's font-size is
+ * under 16px, and leaves it zoomed after blur. Forms here mostly use 14px
+ * (and the pill filter selects 11px), so floor every text-entry control at
+ * 16px below the md breakpoint. Deliberately unlayered: it has to beat the
+ * per-component text-* utilities, which live in @layer utilities. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  /* The pill filter/sort selects are mono uppercase at 11px with wide
+     tracking; at the forced 16px that tracking makes them read as shouting
+     next to the 11px status chips, so tighten it. */
+  select.font-mono {
+    letter-spacing: 0.02em;
+  }
+  /* The larger text can push a long option ("Owned by: <reseller>") past a
+     320px screen; a native select truncates its own label when capped. */
+  select {
+    max-width: 100%;
+  }
+}
+
 @utility glass {
   background-color: var(--glass-bg);
   backdrop-filter: blur(22px) saturate(150%);
