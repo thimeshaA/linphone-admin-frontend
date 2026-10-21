@@ -64,6 +64,9 @@ interface Ctx {
     password: string;
     expiresAt: string;
     initialCredit?: number | undefined;
+    address?: string | undefined;
+    licenseDetail?: string | undefined;
+    phone?: string | undefined;
   }) => Promise<Reseller>;
   renewReseller: (id: string, expiresAt: string) => Promise<void>;
   setResellerStatus: (

@@ -10,6 +10,9 @@ interface BackendAdmin {
   expires_at: string | null;
   expired_at: string | null;
   created_at?: string;
+  address?: string | null;
+  license_detail?: string | null;
+  phone?: string | null;
 }
 
 function mapReseller(a: BackendAdmin): Reseller {
@@ -22,6 +25,9 @@ function mapReseller(a: BackendAdmin): Reseller {
     expiredAt: a.expired_at,
     // POST /admins doesn't return created_at — approximate with now().
     createdAt: a.created_at ?? new Date().toISOString(),
+    address: a.address ?? null,
+    licenseDetail: a.license_detail ?? null,
+    phone: a.phone ?? null,
   };
 }
 
@@ -34,6 +40,9 @@ export const resellersApi = {
     password: string;
     expiresAt: string;
     initialCredit?: number | undefined;
+    address?: string | undefined;
+    licenseDetail?: string | undefined;
+    phone?: string | undefined;
   }) =>
     apiFetch<BackendAdmin>("/admins", {
       method: "POST",
@@ -43,6 +52,9 @@ export const resellersApi = {
         password: input.password,
         expires_at: toMySqlDatetime(input.expiresAt),
         initialCredit: input.initialCredit || undefined,
+        address: input.address || undefined,
+        license_detail: input.licenseDetail || undefined,
+        phone: input.phone || undefined,
       }),
     }).then(mapReseller),
   renew: (id: string, expiresAt: string) =>

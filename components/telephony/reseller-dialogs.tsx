@@ -53,6 +53,9 @@ export function CreateResellerDialog({
   const [password, setPassword] = useState("");
   const [periods, setPeriods] = useState(1); // 1 x 6 months = the base period
   const [initialCredit, setInitialCredit] = useState("");
+  const [address, setAddress] = useState("");
+  const [licenseDetail, setLicenseDetail] = useState("");
+  const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [serverError, setServerError] = useState("");
@@ -63,6 +66,9 @@ export function CreateResellerDialog({
     setPassword("");
     setPeriods(1);
     setInitialCredit("");
+    setAddress("");
+    setLicenseDetail("");
+    setPhone("");
     setErrors({});
     setState("idle");
     setServerError("");
@@ -81,6 +87,10 @@ export function CreateResellerDialog({
     const credit = initialCredit.trim() ? Number(initialCredit) : 0;
     if (initialCredit.trim() && (!Number.isFinite(credit) || credit < 0))
       next["initialCredit"] = "Enter a non-negative amount, or leave it blank.";
+    if (licenseDetail.trim().length > 255)
+      next["licenseDetail"] = "Keep this to 255 characters or fewer.";
+    if (phone.trim().length > 20)
+      next["phone"] = "Keep this to 20 characters or fewer.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -95,6 +105,9 @@ export function CreateResellerDialog({
         password,
         expiresAt,
         initialCredit: credit > 0 ? credit : undefined,
+        address: address.trim() || undefined,
+        licenseDetail: licenseDetail.trim() || undefined,
+        phone: phone.trim() || undefined,
       });
       toast.success(`${created.username} added as a reseller`, {
         description: `Active until ${formatDate(created.expiresAt ?? expiresAt)}.`,
@@ -222,6 +235,58 @@ export function CreateResellerDialog({
               </p>
             ) : null}
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rc-address">Company address (optional)</Label>
+            <input
+              id="rc-address"
+              className={inputClass}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="12 Rue de la Paix, 75002 Paris"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rc-license">License detail (optional)</Label>
+            <input
+              id="rc-license"
+              className={inputClass}
+              value={licenseDetail}
+              onChange={(e) => setLicenseDetail(e.target.value)}
+              placeholder="RCS 123 456 789"
+              maxLength={255}
+              aria-invalid={!!errors["licenseDetail"]}
+            />
+            {errors["licenseDetail"] ? (
+              <p role="alert" className="text-xs text-negative-foreground">
+                {errors["licenseDetail"]}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="rc-phone">Company phone (optional)</Label>
+            <input
+              id="rc-phone"
+              type="tel"
+              className={inputClass}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+33 1 23 45 67 89"
+              maxLength={20}
+              aria-invalid={!!errors["phone"]}
+            />
+            {errors["phone"] ? (
+              <p role="alert" className="text-xs text-negative-foreground">
+                {errors["phone"]}
+              </p>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Company address, license detail, and phone appear on this
+            reseller&apos;s invoice PDFs under &ldquo;Billed to&rdquo;.
+          </p>
 
           {state === "error" ? (
             <p
