@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
 import { EmptyState, PageHeader } from "@/components/telephony/primitives";
-import { StatusPill } from "@/components/telephony/status-pill";
+import { PillSelect } from "@/components/telephony/pill-select";
+import { SubscriptionRow } from "@/components/telephony/subscription-row";
 import { RenewDialog } from "@/components/telephony/account-dialogs";
 import { useTelephony } from "@/contexts/telephony-context";
-import { accountStatus, daysUntil, formatDate } from "@/lib/telephony/status";
+import { accountStatus } from "@/lib/telephony/status";
 import type { AccountStatus, SipAccount } from "@/lib/telephony/types";
 import { cn } from "@/lib/utils";
 
@@ -109,7 +110,7 @@ function SipSubscriptionsPage() {
         <div className="relative lg:w-80">
           <Search
             aria-hidden="true"
-            className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
           />
           <input
             type="search"
@@ -125,7 +126,7 @@ function SipSubscriptionsPage() {
           <div
             role="group"
             aria-label="Filter by status"
-            className="flex flex-wrap gap-1.5"
+            className="chip-scroll-row flex flex-wrap gap-1.5"
           >
             {FILTERS.map((f) => (
               <button
@@ -134,7 +135,7 @@ function SipSubscriptionsPage() {
                 aria-pressed={filter === f.key}
                 onClick={() => setFilter(f.key)}
                 className={cn(
-                  "h-9 rounded-full px-3.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
+                  "h-9 shrink-0 rounded-full px-3.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
                   filter === f.key
                     ? "module-bg"
                     : "glass text-muted-foreground hover:text-foreground",
@@ -144,45 +145,38 @@ function SipSubscriptionsPage() {
               </button>
             ))}
           </div>
-          <label className="sr-only" htmlFor="sort">
-            Sort subscriptions
-          </label>
-          <select
+          <PillSelect
             id="sort"
+            label="Sort subscriptions"
             value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
-            className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="expiry">Sort: expiry</option>
-            <option value="created">Sort: newest</option>
-            <option value="identifier">Sort: identifier</option>
-          </select>
+            onChange={setSort}
+            options={[
+              { value: "expiry", label: "Sort: expiry" },
+              { value: "created", label: "Sort: newest" },
+              { value: "identifier", label: "Sort: identifier" },
+            ]}
+          />
           {isAdmin ? (
-            <>
-              <label className="sr-only" htmlFor="owner-filter">
-                Filter by owner
-              </label>
-              <select
-                id="owner-filter"
-                value={resellerFilter ?? "all"}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  router.push(
-                    value === "all"
-                      ? "/sip/subscriptions"
-                      : `/sip/subscriptions?reseller=${value}`,
-                  );
-                }}
-                className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="all">Owned by: all</option>
-                {resellers.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    Owned by: {r.username}
-                  </option>
-                ))}
-              </select>
-            </>
+            <PillSelect
+              id="owner-filter"
+              label="Filter by owner"
+              value={resellerFilter ?? "all"}
+              onChange={(value) => {
+                router.push(
+                  value === "all"
+                    ? "/sip/subscriptions"
+                    : `/sip/subscriptions?reseller=${value}`,
+                );
+              }}
+              options={[
+                { value: "all", label: "Owned by: all" },
+                ...resellers.map((r) => ({
+                  value: r.id,
+                  label: `Owned by: ${r.username}`,
+                })),
+              ]}
+              className="max-md:max-w-56"
+            />
           ) : null}
         </div>
       </div>
@@ -218,74 +212,16 @@ function SipSubscriptionsPage() {
         </div>
       ) : (
         <ul className="space-y-2.5">
-          {rows.map((a) => {
-            const days = daysUntil(a.expiresAt);
-            const daysLabel =
-              days < 0 ? `${Math.abs(days)}d overdue` : `${days}d remaining`;
-            const status = accountStatus(a);
-            return (
-              <li
-                key={a.id}
-                className="glass rounded-[16px] px-4 py-3.5 md:px-5 md:py-4"
-              >
-                {/* Desktop: single row */}
-                <div className="hidden md:flex md:flex-wrap md:items-center md:justify-between md:gap-4">
-                  <div className="min-w-0">
-                    <p className="font-medium">{a.displayName}</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {a.sipId}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm tabular-nums">
-                        {formatDate(a.expiresAt)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {daysLabel}
-                      </p>
-                    </div>
-                    <StatusPill status={status} />
-                    <button
-                      type="button"
-                      onClick={() => setRenewing(a)}
-                      className="module-bg h-10 shrink-0 rounded-xl px-4 text-sm font-semibold"
-                    >
-                      Renew
-                    </button>
-                  </div>
-                </div>
-
-                {/* Mobile: stacked */}
-                <div className="md:hidden">
-                  <p className="truncate font-medium">{a.displayName}</p>
-                  <p className="truncate font-mono text-xs text-muted-foreground">
-                    {a.sipId}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                      <div>
-                        <p className="text-sm tabular-nums">
-                          {formatDate(a.expiresAt)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {daysLabel}
-                        </p>
-                      </div>
-                      <StatusPill status={status} className="shrink-0" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRenewing(a)}
-                      className="module-bg h-10 shrink-0 rounded-xl px-4 text-sm font-semibold"
-                    >
-                      Renew
-                    </button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
+          {rows.map((a) => (
+            <SubscriptionRow
+              key={a.id}
+              title={a.sipId}
+              subtitle={a.email}
+              expiresAt={a.expiresAt}
+              status={accountStatus(a)}
+              onRenew={() => setRenewing(a)}
+            />
+          ))}
         </ul>
       )}
 

@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { AppShell } from "@/components/telephony/app-shell";
 import { EmptyState, PageHeader } from "@/components/telephony/primitives";
-import { StatusPill } from "@/components/telephony/status-pill";
+import { PillSelect } from "@/components/telephony/pill-select";
+import { SubscriptionRow } from "@/components/telephony/subscription-row";
 import { RenewResellerDialog } from "@/components/telephony/reseller-dialogs";
 import { useTelephony } from "@/contexts/telephony-context";
-import { daysUntil, formatDate, resellerStatus } from "@/lib/telephony/status";
+import { resellerStatus } from "@/lib/telephony/status";
 import type { AccountStatus, Reseller } from "@/lib/telephony/types";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +79,7 @@ function ResellerSubscriptionsPage() {
         <div className="relative lg:w-80">
           <Search
             aria-hidden="true"
-            className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
           />
           <input
             type="search"
@@ -94,7 +95,7 @@ function ResellerSubscriptionsPage() {
           <div
             role="group"
             aria-label="Filter by status"
-            className="flex flex-wrap gap-1.5"
+            className="chip-scroll-row flex flex-wrap gap-1.5"
           >
             {FILTERS.map((f) => (
               <button
@@ -103,7 +104,7 @@ function ResellerSubscriptionsPage() {
                 aria-pressed={filter === f.key}
                 onClick={() => setFilter(f.key)}
                 className={cn(
-                  "h-9 rounded-full px-3.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
+                  "h-9 shrink-0 rounded-full px-3.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
                   filter === f.key
                     ? "module-bg"
                     : "glass text-muted-foreground hover:text-foreground",
@@ -113,19 +114,17 @@ function ResellerSubscriptionsPage() {
               </button>
             ))}
           </div>
-          <label className="sr-only" htmlFor="sort">
-            Sort resellers
-          </label>
-          <select
+          <PillSelect
             id="sort"
+            label="Sort resellers"
             value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
-            className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="expiry">Sort: expiry</option>
-            <option value="created">Sort: newest</option>
-            <option value="identifier">Sort: identifier</option>
-          </select>
+            onChange={setSort}
+            options={[
+              { value: "expiry", label: "Sort: expiry" },
+              { value: "created", label: "Sort: newest" },
+              { value: "identifier", label: "Sort: identifier" },
+            ]}
+          />
         </div>
       </div>
 
@@ -167,82 +166,16 @@ function ResellerSubscriptionsPage() {
         </div>
       ) : (
         <ul className="space-y-2.5">
-          {rows.map((r) => {
-            const days = r.expiresAt ? daysUntil(r.expiresAt) : null;
-            const daysLabel =
-              days === null
-                ? "No expiry set"
-                : days < 0
-                  ? `${Math.abs(days)}d overdue`
-                  : `${days}d remaining`;
-            const status = resellerStatus(r);
-            const urgent = status !== "active";
-            return (
-              <li
-                key={r.id}
-                className="glass rounded-[16px] px-4 py-3.5 md:px-5 md:py-4"
-              >
-                {/* Desktop: unchanged single-row layout */}
-                <div className="hidden md:flex md:flex-wrap md:items-center md:justify-between md:gap-4">
-                  <div className="min-w-0">
-                    <p className="font-mono text-sm font-medium">
-                      {r.username}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm tabular-nums">
-                        {r.expiresAt ? formatDate(r.expiresAt) : "—"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {daysLabel}
-                      </p>
-                    </div>
-                    <StatusPill status={status} />
-                    <button
-                      type="button"
-                      onClick={() => setRenewing(r)}
-                      className="module-bg h-10 shrink-0 rounded-xl px-4 text-sm font-semibold"
-                    >
-                      Renew
-                    </button>
-                  </div>
-                </div>
-
-                {/* Mobile: stacked, urgency-scaled Renew button */}
-                <div className="md:hidden">
-                  <p className="truncate font-mono text-sm font-medium">
-                    {r.username}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                      <div>
-                        <p className="text-sm tabular-nums">
-                          {r.expiresAt ? formatDate(r.expiresAt) : "—"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {daysLabel}
-                        </p>
-                      </div>
-                      <StatusPill status={status} className="shrink-0" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRenewing(r)}
-                      className={cn(
-                        "h-10 shrink-0 rounded-xl px-4 text-sm font-semibold transition-colors",
-                        urgent
-                          ? "module-bg"
-                          : "border border-module module-text bg-module/10",
-                      )}
-                    >
-                      Renew
-                    </button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
+          {rows.map((r) => (
+            <SubscriptionRow
+              key={r.id}
+              title={r.username}
+              subtitle={r.email}
+              expiresAt={r.expiresAt}
+              status={resellerStatus(r)}
+              onRenew={() => setRenewing(r)}
+            />
+          ))}
         </ul>
       )}
 

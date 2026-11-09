@@ -10,6 +10,7 @@ import {
   StatBlock,
 } from "@/components/telephony/primitives";
 import { StatusPill } from "@/components/telephony/status-pill";
+import { PillSelect } from "@/components/telephony/pill-select";
 import {
   AccountsTrendChart,
   ActiveDisabledSplit,
@@ -157,7 +158,7 @@ function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <div className="glass space-y-4 rounded-[20px] p-5">
+    <div className="glass min-w-0 space-y-4 rounded-[20px] p-5">
       <div>
         <h3 className="font-display text-sm font-semibold">{title}</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
@@ -211,7 +212,7 @@ function ResellerBreakdownTable({
         <div className="relative lg:w-80">
           <Search
             aria-hidden="true"
-            className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
           />
           <input
             type="search"
@@ -227,19 +228,17 @@ function ResellerBreakdownTable({
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="sr-only" htmlFor="reseller-breakdown-sort">
-            Sort resellers
-          </label>
-          <select
+          <PillSelect
             id="reseller-breakdown-sort"
+            label="Sort resellers"
             value={sort}
-            onChange={(e) => setSort(e.target.value as ResellerSort)}
-            className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="accounts">Sort: accounts (high–low)</option>
-            <option value="created">Sort: newest</option>
-            <option value="username">Sort: username</option>
-          </select>
+            onChange={setSort}
+            options={[
+              { value: "accounts", label: "Sort: accounts (high–low)" },
+              { value: "created", label: "Sort: newest" },
+              { value: "username", label: "Sort: username" },
+            ]}
+          />
         </div>
       </div>
 

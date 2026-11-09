@@ -60,7 +60,9 @@ export function StatBlock({
         <CountUp
           value={value}
           className={cn(
-            "text-4xl transition-colors sm:text-5xl",
+            // ~28px at 360px wide, ~30px on a 393px iPhone, reaching the
+            // desktop 48px (text-5xl) at 768px and staying there.
+            "text-[clamp(1.75rem,0.65rem+4.9vw,3rem)] transition-colors",
             tone === "accent" && "text-module",
             tone === "success" && "text-positive-foreground",
             tone === "negative" && "text-negative-foreground",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Plus, Search, Wallet as WalletIcon } from "lucide-react";
+import { PillSelect } from "./pill-select";
 import { EmptyState, PageHeader, StatBlock } from "./primitives";
 import { MetaTag, WalletStatusPill } from "./status-pill";
 import { TopUpWalletDialog } from "./top-up-dialog";
@@ -107,7 +108,7 @@ export function ResellerWalletsView() {
           <div className="relative lg:w-80">
             <Search
               aria-hidden="true"
-              className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
             />
             <input
               type="search"
@@ -119,18 +120,17 @@ export function ResellerWalletsView() {
             />
           </div>
 
-          <label className="sr-only" htmlFor="wallet-sort">
-            Sort
-          </label>
-          <select
+          <PillSelect
             id="wallet-sort"
+            label="Sort"
             value={sort}
-            onChange={(e) => setSort(e.target.value as Sort)}
-            className="glass h-9 w-fit rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="balance">Sort: most owed first</option>
-            <option value="name">Sort: name</option>
-          </select>
+            onChange={setSort}
+            options={[
+              { value: "balance", label: "Sort: most owed first" },
+              { value: "name", label: "Sort: name" },
+            ]}
+            selectClassName="w-fit"
+          />
         </div>
 
         {resellersLoading ? (

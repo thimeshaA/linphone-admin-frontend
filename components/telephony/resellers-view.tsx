@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  ChevronDown,
   KeyRound,
   MoreHorizontal,
   PauseCircle,
   PlayCircle,
   Plus,
   Search,
-  SlidersHorizontal,
   Users,
   Wallet as WalletIcon,
 } from "lucide-react";
+import { PillSelect } from "./pill-select";
 import { EmptyState, PageHeader, StatBlock } from "./primitives";
 import { MetaTag, StatusPill, WalletStatusPill } from "./status-pill";
 import {
@@ -31,7 +32,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTelephony } from "@/contexts/telephony-context";
 import { useWalletSummaries } from "@/hooks/use-wallet-summaries";
-import { formatDate, resellerStatus } from "@/lib/telephony/status";
+import {
+  distinctSubtitle,
+  formatDate,
+  resellerStatus,
+} from "@/lib/telephony/status";
 import type { AccountStatus, ModuleKey, Reseller } from "@/lib/telephony/types";
 import { cn } from "@/lib/utils";
 
@@ -166,7 +171,7 @@ function SipResellersPanel() {
           <div className="relative lg:w-80">
             <Search
               aria-hidden="true"
-              className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
             />
             <input
               type="search"
@@ -209,14 +214,19 @@ function SipResellersPanel() {
               ))}
             </div>
 
-            {/* Mobile: single Filter dropdown, same options as a select list */}
+            {/* Mobile: single Filter dropdown, same options as a select list.
+                Styled to match the phone-width <PillSelect> beside it (13px,
+                sentence case, trailing chevron) so the two read as a pair. */}
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Filter by status"
-                className="glass flex h-9 items-center gap-1.5 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+                className="glass flex h-9 items-center gap-1.5 rounded-full pl-3.5 pr-3 text-[13px] outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring md:hidden"
               >
-                <SlidersHorizontal aria-hidden="true" className="size-3.5" />
                 Filter: {FILTERS.find((f) => f.key === filter)?.label}
+                <ChevronDown
+                  aria-hidden="true"
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuRadioGroup
@@ -235,19 +245,17 @@ function SipResellersPanel() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <label className="sr-only" htmlFor="reseller-sort">
-              Sort resellers
-            </label>
-            <select
+            <PillSelect
               id="reseller-sort"
+              label="Sort resellers"
               value={sort}
-              onChange={(e) => setSort(e.target.value as typeof sort)}
-              className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="expiry">Sort: expiry</option>
-              <option value="created">Sort: newest</option>
-              <option value="username">Sort: username</option>
-            </select>
+              onChange={setSort}
+              options={[
+                { value: "expiry", label: "Sort: expiry" },
+                { value: "created", label: "Sort: newest" },
+                { value: "username", label: "Sort: username" },
+              ]}
+            />
           </div>
         </div>
 
@@ -378,48 +386,50 @@ function SipResellersPanel() {
             {/* Mobile cards */}
             <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
               {pageRows.map((r) => (
-                <li key={r.id} className="glass rounded-[20px] p-4">
+                <li
+                  key={r.id}
+                  className="glass rounded-[20px] px-4 py-3.5 md:py-4"
+                >
+                  {/* Actions share the header row with the status pill, same
+                      as the account cards. */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-mono text-sm font-medium">
                         {r.username}
                       </p>
-                      {r.email ? (
+                      {distinctSubtitle(r.email, r.username) ? (
                         <p className="truncate text-xs text-muted-foreground">
                           {r.email}
                         </p>
                       ) : null}
                     </div>
-                    <StatusPill
-                      status={resellerStatus(r)}
-                      className="shrink-0"
-                    />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusPill status={resellerStatus(r)} />
+                      <RowMenu
+                        reseller={r}
+                        onReset={() => setResetting(r)}
+                        onToggle={() => setToggling(r)}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <dl className="grid flex-1 grid-cols-2 gap-3">
-                      <div>
-                        <dt className="label-meta">Expiry</dt>
-                        <dd className="mt-1 text-sm tabular-nums">
-                          {r.expiresAt ? formatDate(r.expiresAt) : "—"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="label-meta">Accounts created</dt>
-                        <dd className="mt-1 text-sm tabular-nums">
-                          {accountCountFor(r.id)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="label-meta">Wallet</dt>
-                        <dd className="mt-1 text-sm">{walletCellFor(r.id)}</dd>
-                      </div>
-                    </dl>
-                    <RowMenu
-                      reseller={r}
-                      onReset={() => setResetting(r)}
-                      onToggle={() => setToggling(r)}
-                    />
-                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="min-w-0">
+                      <dt className="label-meta">Expiry</dt>
+                      <dd className="mt-1 truncate text-sm tabular-nums">
+                        {r.expiresAt ? formatDate(r.expiresAt) : "—"}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="label-meta">Accounts created</dt>
+                      <dd className="mt-1 truncate text-sm tabular-nums">
+                        {accountCountFor(r.id)}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="label-meta">Wallet</dt>
+                      <dd className="mt-1 text-sm">{walletCellFor(r.id)}</dd>
+                    </div>
+                  </dl>
                 </li>
               ))}
             </ul>

@@ -194,8 +194,12 @@
   --ambient-wash-tint: 5%;
 
   /* space reserved above the floating mobile nav so content never hides
-     behind it: pill height + bottom offset + safe area. */
-  --mobile-nav-clearance: calc(5rem + env(safe-area-inset-bottom, 0px));
+     behind it. Mirrors .lens-tabbar-root exactly — 60px pill sitting at
+     max(12px, safe area) — plus 1.5rem so the last card clears the pill's
+     shadow instead of ending flush against it (the old flat 5rem left 8px). */
+  --mobile-nav-clearance: calc(
+    60px + max(12px, env(safe-area-inset-bottom, 0px)) + 1.5rem
+  );
 }
 
 .dark {
@@ -334,16 +338,37 @@
   textarea {
     font-size: 16px;
   }
-  /* The pill filter/sort selects are mono uppercase at 11px with wide
-     tracking; at the forced 16px that tracking makes them read as shouting
-     next to the 11px status chips, so tighten it. */
-  select.font-mono {
-    letter-spacing: 0.02em;
+  /* The pill sort/filter selects are exempt in practice: below md they're a
+     transparent layer under a 13px label (see pill-select.tsx), so the
+     forced 16px never shows. */
+  /* The input itself stays at 16px (zoom floor above); only the hint text
+     shrinks back to the 14px the fields use on desktop, so an empty search
+     bar doesn't look oversized. */
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 14px;
+    color: var(--color-muted-foreground);
   }
   /* The larger text can push a long option ("Owned by: <reseller>") past a
      320px screen; a native select truncates its own label when capped. */
   select {
     max-width: 100%;
+  }
+  /* Status filter chips: one swipeable row instead of wrapping onto two or
+     three lines above the list. It bleeds into main's 1rem side gutter so
+     chips scroll off the screen edge rather than clipping at the padding.
+     Unlayered, so it beats the element's own flex-wrap utility. */
+  .chip-scroll-row {
+    flex-wrap: nowrap;
+    width: calc(100% + 2rem);
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .chip-scroll-row::-webkit-scrollbar {
+    display: none;
   }
 }
 

@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="flex items-center gap-1.5">
           <NotificationBell />
-          <ThemeToggle />
+          <ThemeToggle iconOnlyOnPhone />
         </div>
       </div>
 

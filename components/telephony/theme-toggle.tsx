@@ -7,9 +7,12 @@ import { cn } from "@/lib/utils";
 export function ThemeToggle({
   className,
   iconOnly,
+  iconOnlyOnPhone,
 }: {
   className?: string;
   iconOnly?: boolean;
+  /** Icon-only below md, labelled from md up. */
+  iconOnlyOnPhone?: boolean;
 }) {
   const { theme, toggleTheme } = useTelephony();
   const isDark = theme === "dark";
@@ -23,7 +26,11 @@ export function ThemeToggle({
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       className={cn(
         "inline-flex items-center gap-2 rounded-full bg-secondary text-sm font-medium transition-colors hover:bg-accent",
-        iconOnly ? "size-10 justify-center" : "h-10 px-3",
+        iconOnly
+          ? "size-10 justify-center"
+          : iconOnlyOnPhone
+            ? "h-10 w-10 justify-center md:w-auto md:px-3"
+            : "h-10 px-3",
         className,
       )}
     >
@@ -44,7 +51,12 @@ export function ThemeToggle({
         />
       </span>
       {iconOnly ? null : (
-        <span className="font-mono text-[11px] tracking-wider uppercase">
+        <span
+          className={cn(
+            "font-mono text-[11px] tracking-wider uppercase",
+            iconOnlyOnPhone && "max-md:hidden",
+          )}
+        >
           {isDark ? "Dark" : "Light"}
         </span>
       )}

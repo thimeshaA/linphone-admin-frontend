@@ -21,6 +21,7 @@ import {
   StatBlock,
 } from "@/components/telephony/primitives";
 import { StatusPill } from "@/components/telephony/status-pill";
+import { PillSelect } from "@/components/telephony/pill-select";
 import {
   ChangeAccountPasswordDialog,
   CreateAccountDialog,
@@ -37,7 +38,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTelephony } from "@/contexts/telephony-context";
-import { accountStatus, formatDate } from "@/lib/telephony/status";
+import {
+  accountStatus,
+  distinctSubtitle,
+  formatDate,
+} from "@/lib/telephony/status";
 import type { AccountStatus, SipAccount } from "@/lib/telephony/types";
 import { cn } from "@/lib/utils";
 
@@ -218,7 +223,7 @@ function SipAccountsPage() {
           <div className="relative lg:w-80">
             <Search
               aria-hidden="true"
-              className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
             />
             <input
               type="search"
@@ -237,7 +242,7 @@ function SipAccountsPage() {
             <div
               role="group"
               aria-label="Filter by status"
-              className="flex flex-wrap gap-1.5"
+              className="chip-scroll-row flex flex-wrap gap-1.5"
             >
               {FILTERS.map((f) => (
                 <button
@@ -249,7 +254,7 @@ function SipAccountsPage() {
                     setPage(0);
                   }}
                   className={cn(
-                    "h-9 rounded-full px-3.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
+                    "h-9 shrink-0 rounded-full px-3.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
                     filter === f.key
                       ? "module-bg"
                       : "glass text-muted-foreground hover:text-foreground",
@@ -259,46 +264,39 @@ function SipAccountsPage() {
                 </button>
               ))}
             </div>
-            <label className="sr-only" htmlFor="sort">
-              Sort accounts
-            </label>
-            <select
+            <PillSelect
               id="sort"
+              label="Sort accounts"
               value={sort}
-              onChange={(e) => setSort(e.target.value as typeof sort)}
-              className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="expiry">Sort: expiry</option>
-              <option value="created">Sort: newest</option>
-              <option value="identifier">Sort: identifier</option>
-            </select>
+              onChange={setSort}
+              options={[
+                { value: "expiry", label: "Sort: expiry" },
+                { value: "created", label: "Sort: newest" },
+                { value: "identifier", label: "Sort: identifier" },
+              ]}
+            />
             {isAdmin ? (
-              <>
-                <label className="sr-only" htmlFor="owner-filter">
-                  Filter by owner
-                </label>
-                <select
-                  id="owner-filter"
-                  value={resellerFilter ?? "all"}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setPage(0);
-                    router.push(
-                      value === "all"
-                        ? "/sip/accounts"
-                        : `/sip/accounts?reseller=${value}`,
-                    );
-                  }}
-                  className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="all">Owned by: all</option>
-                  {resellers.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Owned by: {r.username}
-                    </option>
-                  ))}
-                </select>
-              </>
+              <PillSelect
+                id="owner-filter"
+                label="Filter by owner"
+                value={resellerFilter ?? "all"}
+                onChange={(value) => {
+                  setPage(0);
+                  router.push(
+                    value === "all"
+                      ? "/sip/accounts"
+                      : `/sip/accounts?reseller=${value}`,
+                  );
+                }}
+                options={[
+                  { value: "all", label: "Owned by: all" },
+                  ...resellers.map((r) => ({
+                    value: r.id,
+                    label: `Owned by: ${r.username}`,
+                  })),
+                ]}
+                className="max-md:max-w-56"
+              />
             ) : null}
           </div>
         </div>
@@ -437,49 +435,57 @@ function SipAccountsPage() {
             {/* Mobile cards */}
             <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
               {pageRows.map((a) => (
-                <li key={a.id} className="glass rounded-[20px] p-4">
+                <li
+                  key={a.id}
+                  className="glass rounded-[20px] px-4 py-3.5 md:py-4"
+                >
+                  {/* Actions share the header row with the status pill —
+                      on its own row the menu added ~60px to every card. */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-mono text-sm font-medium">
                         {a.sipId}
                       </p>
-                      {a.email ? (
+                      {distinctSubtitle(a.email, a.sipId, a.displayName) ? (
                         <p className="truncate text-xs text-muted-foreground">
                           {a.email}
                         </p>
                       ) : null}
                     </div>
-                    <StatusPill
-                      status={accountStatus(a)}
-                      className="shrink-0"
-                    />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusPill status={accountStatus(a)} />
+                      <RowMenu
+                        account={a}
+                        isAdmin={isAdmin}
+                        onToggle={() => setToggling(a)}
+                        onChangePassword={() => setChangingPassword(a)}
+                        onDelete={() => setDeleting(a)}
+                        onReassign={() => setReassigning(a)}
+                      />
+                    </div>
                   </div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3">
-                    <div>
+                  {/* min-w-0 + truncate: grid cells default to min-width:auto,
+                      so a long reseller name widened its column past the
+                      card's padding instead of clipping. */}
+                  <dl className="mt-3 grid grid-cols-2 gap-3 md:mt-4">
+                    <div className="min-w-0">
                       <dt className="label-meta">Expiry</dt>
-                      <dd className="mt-1 text-sm tabular-nums">
+                      <dd className="mt-1 truncate text-sm tabular-nums">
                         {formatDate(a.expiresAt)}
                       </dd>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <dt className="label-meta">
                         {isAdmin ? "Owned by" : "Created"}
                       </dt>
-                      <dd className="mt-1 text-sm">
+                      <dd
+                        className="mt-1 truncate text-sm"
+                        title={isAdmin ? a.createdByName : undefined}
+                      >
                         {isAdmin ? a.createdByName : formatDate(a.createdAt)}
                       </dd>
                     </div>
                   </dl>
-                  <div className="mt-4 flex items-center justify-end">
-                    <RowMenu
-                      account={a}
-                      isAdmin={isAdmin}
-                      onToggle={() => setToggling(a)}
-                      onChangePassword={() => setChangingPassword(a)}
-                      onDelete={() => setDeleting(a)}
-                      onReassign={() => setReassigning(a)}
-                    />
-                  </div>
                 </li>
               ))}
             </ul>
