@@ -336,11 +336,7 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       try {
         const updated = disabled
           ? await accountsApi.disable(id)
-          : await accountsApi.renew(
-              id,
-              accounts.find((a) => a.id === id)?.expiresAt ??
-                new Date().toISOString(),
-            );
+          : await accountsApi.enable(id);
         setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
       } catch (err) {
         handleApiError(err);

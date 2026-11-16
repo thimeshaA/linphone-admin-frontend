@@ -62,6 +62,11 @@ export const accountsApi = {
     apiFetch<BackendAccount>(`/accounts/${id}/disable`, {
       method: "PATCH",
     }).then(mapAccount),
+  // Clears the disabled flag only — never a renewal, so no wallet charge.
+  enable: (id: string) =>
+    apiFetch<BackendAccount>(`/accounts/${id}/enable`, {
+      method: "PATCH",
+    }).then(mapAccount),
   // Admin-only.
   reassign: (id: string, resellerId: string) =>
     apiFetch<BackendAccount>(`/accounts/${id}/reassign`, {
