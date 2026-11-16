@@ -31,14 +31,20 @@ export function BalanceStat({
 }) {
   const positive = tone === "auto" ? balanceUsd >= 0 : tone === "positive";
   return (
-    <div className="flex flex-col gap-2">
+    <div className="@container flex min-w-0 flex-col gap-2">
       <span className="label-meta">{label}</span>
       {loading ? (
         <div className="h-10 w-32 animate-pulse rounded-md bg-muted" />
       ) : (
+        // Sized off this stat's own column width (cqi), not the viewport: a
+        // formatted amount ("$86,419.69") is far wider than StatBlock's
+        // counts, and the grids it sits in range from two narrow phone
+        // columns to three beside the desktop sidebars — any fixed
+        // breakpoint size overran one of them. overflow-wrap is the last
+        // resort for seven-figure balances at the 1.5rem floor.
         <span
           className={cn(
-            "stat-figure text-4xl tabular-nums transition-colors sm:text-5xl",
+            "stat-figure text-[length:clamp(1.5rem,12cqi,3rem)] tabular-nums transition-colors [overflow-wrap:anywhere]",
             positive ? "text-positive-foreground" : "text-negative-foreground",
           )}
         >

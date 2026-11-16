@@ -85,7 +85,7 @@ export function ReportGenerator({
         </div>
       ) : null}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]">
         <section className="glass glass-hairline space-y-6 rounded-[20px] p-6 sm:p-7">
           <span className="module-tint grid size-12 place-items-center rounded-2xl">
             {icon}
@@ -114,7 +114,7 @@ export function ReportGenerator({
 
         <section
           aria-label="Generate report"
-          className="glass-strong glass-hairline space-y-6 rounded-[20px] p-6 lg:sticky lg:top-6"
+          className="glass-strong glass-hairline space-y-6 rounded-[20px] p-6 xl:sticky xl:top-6"
         >
           <PeriodSelect value={period} onChange={setPeriod} />
 

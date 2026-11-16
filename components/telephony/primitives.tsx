@@ -60,7 +60,9 @@ export function StatBlock({
         <CountUp
           value={value}
           className={cn(
-            "text-4xl transition-colors sm:text-5xl",
+            // ~28px at 360px wide, ~30px on a 393px iPhone, reaching the
+            // desktop 48px (text-5xl) at 768px and staying there.
+            "text-[clamp(1.75rem,0.65rem+4.9vw,3rem)] transition-colors",
             tone === "accent" && "text-module",
             tone === "success" && "text-positive-foreground",
             tone === "negative" && "text-negative-foreground",
@@ -88,7 +90,10 @@ export function PageHeader({
   module?: ModuleKey;
 }) {
   return (
-    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 sm:flex sm:items-end sm:justify-between">
+    // Actions stack under the title on phones: beside it, even a single
+    // pill button squeezes the title/description into a narrow column, and
+    // two (e.g. wallet detail's Back + Top up) break the title mid-word.
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         <p className="label-meta flex items-center gap-2">
           {module ? (
@@ -115,7 +120,9 @@ export function PageHeader({
         ) : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {actions}
+        </div>
       ) : null}
     </header>
   );

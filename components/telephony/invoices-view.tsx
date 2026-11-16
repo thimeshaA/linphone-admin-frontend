@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, Receipt } from "lucide-react";
 import { toast } from "sonner";
+import { PillSelect } from "./pill-select";
 import { EmptyState, PageHeader } from "./primitives";
 import { InvoiceSentPill } from "./status-pill";
 import { SendInvoiceDialog } from "./invoice-dialogs";
@@ -130,22 +131,17 @@ export function InvoicesView() {
 
       {isAdmin ? (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <label className="sr-only" htmlFor="invoice-reseller-filter">
-            Filter by reseller
-          </label>
-          <select
+          <PillSelect
             id="invoice-reseller-filter"
+            label="Filter by reseller"
             value={resellerFilter}
-            onChange={(e) => setResellerFilter(e.target.value)}
-            className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="all">All resellers</option>
-            {resellers.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.username}
-              </option>
-            ))}
-          </select>
+            onChange={setResellerFilter}
+            options={[
+              { value: "all", label: "All resellers" },
+              ...resellers.map((r) => ({ value: r.id, label: r.username })),
+            ]}
+            className="max-md:max-w-56"
+          />
         </div>
       ) : null}
 

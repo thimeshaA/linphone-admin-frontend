@@ -44,7 +44,7 @@ export function EndUsersView({ module }: { module: ModuleKey }) {
       <div className="relative lg:w-80">
         <Search
           aria-hidden="true"
-          className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
         />
         <input
           type="search"

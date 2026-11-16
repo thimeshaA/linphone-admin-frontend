@@ -10,9 +10,12 @@ interface BackendAccount {
   status: string;
   expires_at: string;
   disabled_at: string | null;
-  expired_at: string | null;
   creator_id: string | number;
   created_by?: string;
+  // Present only on the create response, only on success, and only once —
+  // the backend can never return it again after this call. Never persisted
+  // into SipAccount/mapAccount, so it can't end up in long-lived list state.
+  qrPayload?: string;
 }
 
 function mapAccount(a: BackendAccount): SipAccount {
@@ -38,6 +41,7 @@ export const accountsApi = {
     authid: string;
     domain: string;
     email: string;
+    phone: string;
     password: string;
     expires_at: string;
     resellerId: string;
@@ -48,7 +52,7 @@ export const accountsApi = {
         ...input,
         expires_at: toMySqlDatetime(input.expires_at),
       }),
-    }).then(mapAccount),
+    }).then((a) => ({ account: mapAccount(a), qrPayload: a.qrPayload })),
   renew: (id: string, expiresAt: string) =>
     apiFetch<BackendAccount>(`/accounts/${id}/renew`, {
       method: "PATCH",
@@ -56,6 +60,11 @@ export const accountsApi = {
     }).then(mapAccount),
   disable: (id: string) =>
     apiFetch<BackendAccount>(`/accounts/${id}/disable`, {
+      method: "PATCH",
+    }).then(mapAccount),
+  // Clears the disabled flag only — never a renewal, so no wallet charge.
+  enable: (id: string) =>
+    apiFetch<BackendAccount>(`/accounts/${id}/enable`, {
       method: "PATCH",
     }).then(mapAccount),
   // Admin-only.
@@ -66,4 +75,12 @@ export const accountsApi = {
     }).then(mapAccount),
   remove: (id: string) =>
     apiFetch<{ message: string }>(`/accounts/${id}`, { method: "DELETE" }),
+  changePassword: (id: string, password: string) =>
+    apiFetch<{ message: string; qrPayload?: string }>(
+      `/accounts/${id}/password`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ password }),
+      },
+    ).then((r) => ({ qrPayload: r.qrPayload })),
 };

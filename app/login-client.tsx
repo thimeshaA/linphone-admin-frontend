@@ -452,7 +452,7 @@ function IllustrationPanel({
 
 function MobileHero() {
   return (
-    <div className="relative z-10 h-[38vh] max-h-80 min-h-64 w-full overflow-hidden md:hidden">
+    <div className="relative z-10 h-[38dvh] max-h-80 min-h-64 w-full overflow-hidden md:hidden">
       <div
         className="absolute inset-0"
         style={{ clipPath: `url(#login-wedge-mobile)` }}

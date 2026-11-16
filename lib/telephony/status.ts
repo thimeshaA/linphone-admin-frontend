@@ -44,6 +44,21 @@ export function formatDate(iso: string) {
   });
 }
 
+/** A card's subtitle (email), or null when it's empty or would just repeat
+ * one of the titles above it — some rows carry the username in the email
+ * column, which printed the same name twice. */
+export function distinctSubtitle(
+  subtitle: string,
+  ...titles: string[]
+): string | null {
+  const s = subtitle.trim();
+  if (!s) return null;
+  const repeated = titles.some(
+    (t) => t.trim().toLowerCase() === s.toLowerCase(),
+  );
+  return repeated ? null : s;
+}
+
 export function toDateInput(iso: string) {
   return new Date(iso).toISOString().slice(0, 10);
 }

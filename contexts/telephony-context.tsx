@@ -43,14 +43,19 @@ interface Ctx {
   createAccount: (input: {
     sipId: string;
     email: string;
+    phone: string;
     password: string;
     expiresAt: string;
     creatorId: string;
-  }) => Promise<SipAccount>;
+  }) => Promise<{ account: SipAccount; qrPayload?: string | undefined }>;
   renewAccount: (id: string, expiresAt: string) => Promise<void>;
   setDisabled: (id: string, disabled: boolean) => Promise<void>;
   reassignAccount: (id: string, creatorId: string) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+  changeAccountPassword: (
+    id: string,
+    newPassword: string,
+  ) => Promise<{ qrPayload?: string | undefined }>;
   resellers: Reseller[];
   resellersLoading: boolean;
   createReseller: (input: {
@@ -59,6 +64,9 @@ interface Ctx {
     password: string;
     expiresAt: string;
     initialCredit?: number | undefined;
+    address?: string | undefined;
+    licenseDetail?: string | undefined;
+    phone?: string | undefined;
   }) => Promise<Reseller>;
   renewReseller: (id: string, expiresAt: string) => Promise<void>;
   setResellerStatus: (
@@ -298,16 +306,17 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
     createAccount: async (input) => {
       const [authid, domain] = input.sipId.split("@");
       try {
-        const created = await accountsApi.create({
+        const { account, qrPayload } = await accountsApi.create({
           authid: authid ?? input.sipId,
           domain: domain ?? "",
           email: input.email,
+          phone: input.phone,
           password: input.password,
           expires_at: new Date(input.expiresAt).toISOString(),
           resellerId: input.creatorId,
         });
-        setAccounts((prev) => [created, ...prev]);
-        return created;
+        setAccounts((prev) => [account, ...prev]);
+        return { account, qrPayload };
       } catch (err) {
         return handleApiError(err);
       }
@@ -327,11 +336,7 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
       try {
         const updated = disabled
           ? await accountsApi.disable(id)
-          : await accountsApi.renew(
-              id,
-              accounts.find((a) => a.id === id)?.expiresAt ??
-                new Date().toISOString(),
-            );
+          : await accountsApi.enable(id);
         setAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
       } catch (err) {
         handleApiError(err);
@@ -351,6 +356,13 @@ export function TelephonyProvider({ children }: { children: ReactNode }) {
         setAccounts((prev) => prev.filter((a) => a.id !== id));
       } catch (err) {
         handleApiError(err);
+      }
+    },
+    changeAccountPassword: async (id, newPassword) => {
+      try {
+        return await accountsApi.changePassword(id, newPassword);
+      } catch (err) {
+        return handleApiError(err);
       }
     },
     resellers,

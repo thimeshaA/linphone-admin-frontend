@@ -10,6 +10,7 @@ import {
   StatBlock,
 } from "@/components/telephony/primitives";
 import { StatusPill } from "@/components/telephony/status-pill";
+import { PillSelect } from "@/components/telephony/pill-select";
 import {
   AccountsTrendChart,
   ActiveDisabledSplit,
@@ -104,7 +105,9 @@ function SipDashboardPage() {
         aria-label="Analytics"
         className={cn(
           "grid gap-6",
-          isAdmin ? "lg:grid-cols-3" : "lg:grid-cols-2",
+          // Three across only from xl: at lg the sidebars leave ~590px, so
+          // each chart got ~180px and its labels wrapped word-by-word.
+          isAdmin ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2",
         )}
       >
         <ChartCard
@@ -155,7 +158,7 @@ function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <div className="glass space-y-4 rounded-[20px] p-5">
+    <div className="glass min-w-0 space-y-4 rounded-[20px] p-5">
       <div>
         <h3 className="font-display text-sm font-semibold">{title}</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
@@ -209,7 +212,7 @@ function ResellerBreakdownTable({
         <div className="relative lg:w-80">
           <Search
             aria-hidden="true"
-            className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground max-md:z-10"
           />
           <input
             type="search"
@@ -225,19 +228,17 @@ function ResellerBreakdownTable({
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="sr-only" htmlFor="reseller-breakdown-sort">
-            Sort resellers
-          </label>
-          <select
+          <PillSelect
             id="reseller-breakdown-sort"
+            label="Sort resellers"
             value={sort}
-            onChange={(e) => setSort(e.target.value as ResellerSort)}
-            className="glass h-9 rounded-full px-3 font-mono text-[11px] tracking-wider uppercase outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="accounts">Sort: accounts (high–low)</option>
-            <option value="created">Sort: newest</option>
-            <option value="username">Sort: username</option>
-          </select>
+            onChange={setSort}
+            options={[
+              { value: "accounts", label: "Sort: accounts (high–low)" },
+              { value: "created", label: "Sort: newest" },
+              { value: "username", label: "Sort: username" },
+            ]}
+          />
         </div>
       </div>
 
@@ -264,8 +265,9 @@ function ResellerBreakdownTable({
         </div>
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="glass hidden overflow-x-auto rounded-[20px] md:block">
+          {/* Desktop table — xl, not md: its columns need ~900px, and on
+              tablets/small laptops (sidebars included) they were clipped */}
+          <div className="glass hidden overflow-x-auto rounded-[20px] xl:block">
             <table className="w-full min-w-[760px] text-sm">
               <caption className="sr-only">
                 Resellers with total accounts, active/disabled split and status
@@ -334,7 +336,7 @@ function ResellerBreakdownTable({
           </div>
 
           {/* Mobile cards */}
-          <ul className="space-y-3 md:hidden">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
             {pageRows.map(({ reseller, total, active, disabled }) => (
               <li key={reseller.id} className="glass rounded-[20px] p-4">
                 <div className="flex items-start justify-between gap-3">

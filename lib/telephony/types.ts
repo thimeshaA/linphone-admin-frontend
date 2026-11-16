@@ -25,6 +25,10 @@ export interface Reseller {
   expiresAt: string | null;
   expiredAt: string | null;
   createdAt: string;
+  /** Company billing profile, shown on invoice PDFs' "Billed To" block. */
+  address: string | null;
+  licenseDetail: string | null;
+  phone: string | null;
 }
 
 export type AccountStatus = "active" | "expiring" | "disabled" | "expired";

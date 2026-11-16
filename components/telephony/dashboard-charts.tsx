@@ -65,10 +65,13 @@ export function StatusDonutChart({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex min-w-0 flex-col items-center gap-4">
+      {/* A definite height, not aspect-square + max-h: Safari resolves the
+          ResponsiveContainer's 100% height against the aspect-ratio box and
+          sized the SVG to the card's width, spilling it over the legend. */}
       <ChartContainer
         config={STATUS_CHART_CONFIG}
-        className="aspect-square max-h-[220px] w-full"
+        className="aspect-auto h-[220px] w-full"
       >
         <PieChart>
           <ChartTooltip
@@ -78,8 +81,10 @@ export function StatusDonutChart({
             data={data}
             dataKey="value"
             nameKey="label"
-            innerRadius="62%"
-            outerRadius="100%"
+            // 90%, not 100%, leaves a margin so the ring never touches the
+            // box edge; inner keeps the same ring-to-hole ratio as before.
+            innerRadius="56%"
+            outerRadius="90%"
             paddingAngle={3}
             cornerRadius={4}
             strokeWidth={0}
