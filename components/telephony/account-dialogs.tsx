@@ -28,8 +28,8 @@ import type { SipAccount } from "@/lib/telephony/types";
 import { AccountQrDialog } from "./account-qr-dialog";
 import { PeriodPicker } from "./period-picker";
 
-const SIP_DOMAIN =
-  process.env["NEXT_PUBLIC_SIP_DOMAIN"] ?? "flexi1.kryptoline.com";
+// Inlined at build time; next.config.mjs fails `next build` if it's unset.
+const SIP_DOMAIN = process.env["NEXT_PUBLIC_SIP_DOMAIN"];
 
 const inputClass =
   "h-11 w-full rounded-xl bg-background px-4 text-sm outline-none ring-1 ring-input focus-visible:ring-2 focus-visible:ring-ring";

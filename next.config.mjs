@@ -1,3 +1,5 @@
+import { PHASE_PRODUCTION_BUILD } from "next/constants.js";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Don't autogenerate AGENTS.md/CLAUDE.md — this repo manages its own docs.
@@ -36,4 +38,18 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// NEXT_PUBLIC_SIP_DOMAIN is inlined into the client bundle at build time and
+// has no fallback (see account-dialogs.tsx) — fail the build loudly rather
+// than ship one that provisions accounts as `user@undefined`. Next loads
+// .env* files before this runs, so .env.local still satisfies local builds.
+export default function config(phase) {
+  if (
+    phase === PHASE_PRODUCTION_BUILD &&
+    !process.env["NEXT_PUBLIC_SIP_DOMAIN"]
+  ) {
+    throw new Error(
+      "NEXT_PUBLIC_SIP_DOMAIN must be set at build time (env, .env.local, or --build-arg for the container build).",
+    );
+  }
+  return nextConfig;
+}

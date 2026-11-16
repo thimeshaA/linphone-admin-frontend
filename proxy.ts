@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Dev-time proxy: rewrites same-origin /api/* requests to the Express backend
-// so client code can call `/api/...` without hitting cross-origin/CORS issues
-// from a different port.
+// The API path in every environment, dev and production: the browser only
+// ever calls same-origin /api/*, and this rewrites each request to the
+// Express backend, so there is no cross-origin/CORS setup. BACKEND_URL is
+// read per request at run time, so it must be set correctly in every
+// deployment (the container's run-time env), not at build time.
 const BACKEND_URL = process.env["BACKEND_URL"] ?? "http://localhost:4000";
 
 export function proxy(request: NextRequest) {
